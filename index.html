@@ -1,0 +1,716 @@
+<!doctype html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Dokan POS</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  body{font-family:'Hind Siliguri','Inter',sans-serif}
+  .num{font-variant-numeric:tabular-nums}
+  ::-webkit-scrollbar{width:8px;height:8px}
+  @media print{ .no-print{display:none!important} body{background:#fff} }
+</style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+<div id="app" class="min-h-screen pb-20"></div>
+
+<script>
+/* ======================= CONFIG ======================= */
+const SUPABASE_URL = "https://adxnjwcjtdqbxowkxqpe.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFkeG5qd2NqdGRxYnhvd2t4cXBlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA0Njc4NzgsImV4cCI6MjEwNjA0Mzg3OH0.nMIjdgGSsTvn0bVEJgJ3S511HudwKw3bpl2T2I6IYP4";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+/* ======================= I18N ======================= */
+const DICT = {
+  appName:["দোকান POS","Dokan POS"], login:["লগইন","Login"], email:["ইমেইল","Email"], password:["পাসওয়ার্ড","Password"],
+  loginBtn:["লগইন করুন","Log in"], logout:["লগ আউট","Logout"], dashboard:["ড্যাশবোর্ড","Dashboard"],
+  pos:["বিক্রয়","New Sale"], products:["পণ্য","Products"], stock:["স্টক","Stock"], customers:["কাস্টমার","Customers"],
+  sales:["বিক্রয় তালিকা","Sales"], reports:["রিপোর্ট","Reports"], staff:["কর্মচারী","Staff"], admin:["অ্যাডমিন","Admin"],
+  search:["খুঁজুন","Search"], searchProduct:["পণ্য খুঁজুন (নাম/কোড)","Search product (name/SKU)"],
+  cart:["কার্ট","Cart"], emptyCart:["কার্ট খালি","Cart is empty"], subtotal:["সাবটোটাল","Subtotal"],
+  discount:["ডিসকাউন্ট","Discount"], grandTotal:["সর্বমোট","Grand Total"], paid:["জমা","Paid"], due:["বাকি","Due"],
+  change:["ফেরত","Change"], walkIn:["সাধারণ ক্রেতা","Walk-in"], selectCustomer:["কাস্টমার বাছুন","Select customer"],
+  completeSale:["বিক্রয় সম্পন্ন করুন","Complete Sale"], saleDone:["বিক্রয় সম্পন্ন হয়েছে","Sale completed"],
+  notEnoughStock:["পর্যাপ্ত স্টক নেই","Not enough stock"], outOfStock:["স্টক শেষ","Out of stock"],
+  dueNeedsCustomer:["বাকি রাখতে কাস্টমার বাছাই করুন","Select a customer to keep a due"],
+  addProduct:["পণ্য যোগ","Add product"], editProduct:["পণ্য সম্পাদনা","Edit product"], productName:["পণ্যের নাম","Product name"],
+  category:["ক্যাটাগরি","Category"], sku:["কোড/SKU","SKU"], buyPrice:["ক্রয় মূল্য","Buy price"], sellPrice:["বিক্রয় মূল্য","Sell price"],
+  stockQty:["স্টক পরিমাণ","Stock qty"], lowStockLevel:["লো-স্টক সীমা","Low stock level"], save:["সংরক্ষণ","Save"], cancel:["বাতিল","Cancel"],
+  delete:["মুছুন","Delete"], confirmDelete:["আপনি কি নিশ্চিত?","Are you sure?"], productSaved:["পণ্য সংরক্ষিত হয়েছে","Product saved"],
+  productDeleted:["পণ্য মুছে ফেলা হয়েছে","Product deleted"], stockUpdated:["স্টক আপডেট হয়েছে","Stock updated"],
+  addCustomer:["কাস্টমার যোগ","Add customer"], editCustomer:["কাস্টমার সম্পাদনা","Edit customer"], name:["নাম","Name"],
+  phone:["ফোন","Phone"], address:["ঠিকানা","Address"], customerSaved:["কাস্টমার সংরক্ষিত হয়েছে","Customer saved"],
+  dueBalance:["মোট বাকি","Due balance"], collectDue:["বাকি আদায়","Collect due"], amount:["পরিমাণ","Amount"],
+  duePaid:["বাকি জমা হয়েছে","Due collected"], paymentHistory:["জমার ইতিহাস","Payment history"], noData:["কোনো তথ্য নেই","No data"],
+  from:["শুরু","From"], to:["শেষ","To"], billCount:["বিল সংখ্যা","Bills"], total:["মোট","Total"], noSales:["এই সময়ে কোনো বিক্রয় নেই","No sales in this period"],
+  profitLoss:["লাভ-ক্ষতি","Profit & Loss"], totalCost:["মোট খরচ","Total cost"], profit:["লাভ","Profit"], loss:["ক্ষতি","Loss"], totalDiscount:["মোট ডিসকাউন্ট","Total discount"],
+  addEmployee:["কর্মচারী যোগ","Add employee"], employeeCreated:["কর্মচারী তৈরি হয়েছে","Employee created"], active:["সক্রিয়","Active"], inactive:["নিষ্ক্রিয়","Inactive"],
+  shops:["দোকানসমূহ","Shops"], addShop:["নতুন দোকান","Add shop"], shopName:["দোকানের নাম","Shop name"], ownerName:["মালিকের নাম","Owner name"],
+  ownerEmail:["মালিকের ইমেইল","Owner email"], ownerPassword:["মালিকের পাসওয়ার্ড","Owner password"], shopCreated:["দোকান তৈরি হয়েছে","Shop created"],
+  noAccess:["এই পেজে আপনার অনুমতি নেই","You don't have access to this page"], error:["সমস্যা হয়েছে","Something went wrong"],
+  setupTitle:["প্রথম Super Admin অ্যাকাউন্ট তৈরি করুন","Create your first Super Admin account"], yourName:["আপনার নাম","Your name"],
+  setupBtn:["তৈরি করুন","Create"], setupDone:["তৈরি সম্পন্ন! এখন লগইন করুন","Setup complete! Please log in"],
+  receipt:["রশিদ","Receipt"], billNo:["বিল নং","Bill"], customer:["কাস্টমার","Customer"], items:["পণ্য","Items"],
+  thankYou:["ধন্যবাদ, আবার আসবেন","Thank you, come again"], print:["প্রিন্ট","Print"], back:["ফিরে যান","Back"],
+  shopInactive:["আপনার দোকান নিষ্ক্রিয় আছে","Your shop is inactive"], loading:["লোড হচ্ছে...","Loading..."],
+  onlyOwnerPrice:["দাম শুধু মালিক পরিবর্তন করতে পারেন","Only the owner can change prices"], stockIn:["স্টক ইন","Stock In"], stockOut:["স্টক আউট","Stock Out"],
+};
+let LANG = localStorage.getItem("lang") || "bn";
+function t(k){ return (DICT[k]||[k,k])[LANG==="bn"?0:1]; }
+function fmt(n){ n = Number(n||0); return (LANG==="bn" ? "৳" : "৳") + n.toLocaleString(LANG==="bn"?"bn-BD":"en-US",{maximumFractionDigits:2}); }
+
+/* ======================= STATE ======================= */
+let SESSION = null, PROFILE = null, SHOP = null;
+let ROUTE = location.hash.replace("#","") || "/dashboard";
+window.addEventListener("hashchange", () => { ROUTE = location.hash.replace("#","") || "/dashboard"; render(); });
+
+const app = document.getElementById("app");
+function nav(path){ location.hash = path; }
+function toast(msg, isErr){
+  const el = document.createElement("div");
+  el.textContent = msg;
+  el.className = "fixed top-3 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-lg shadow-lg text-sm text-white " + (isErr?"bg-red-600":"bg-emerald-600");
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(), 2500);
+}
+
+/* ======================= AUTH / BOOTSTRAP ======================= */
+async function checkSuperAdminExists(){
+  const { count } = await sb.from("profiles").select("id",{count:"exact",head:true});
+  return (count||0) > 0;
+}
+async function loadSession(){
+  const { data:{ session } } = await sb.auth.getSession();
+  SESSION = session;
+  if(!session){ PROFILE=null; SHOP=null; return; }
+  const { data: profile } = await sb.from("profiles").select("*").eq("id",session.user.id).single();
+  PROFILE = profile;
+  if(profile && profile.shop_id){
+    const { data: shop } = await sb.from("shops").select("*").eq("id",profile.shop_id).single();
+    SHOP = shop;
+  } else SHOP = null;
+}
+sb.auth.onAuthStateChange(async (_e, session) => { SESSION = session; await render(); });
+
+async function callFn(action, payload){
+  const { data, error } = await sb.functions.invoke("admin-actions", { body: { action, ...payload } });
+  if(error){ throw new Error(error.message || t("error")); }
+  if(data && data.error) throw new Error(data.error);
+  return data;
+}
+
+/* ======================= LAYOUT ======================= */
+function langToggle(){
+  return `<button onclick="setLang()" class="text-xs font-semibold px-2.5 py-1 rounded-full border border-slate-300 bg-white">${LANG==="bn"?"EN":"বাং"}</button>`;
+}
+function setLang(){ LANG = LANG==="bn"?"en":"bn"; localStorage.setItem("lang",LANG); render(); }
+
+function navItems(){
+  if(!PROFILE) return [];
+  if(PROFILE.role === "super_admin") return [["/admin", t("admin"), "🛡️"]];
+  const items = [["/dashboard", t("dashboard"), "🏠"], ["/pos", t("pos"), "🧾"], ["/products", t("stock"), "📦"], ["/customers", t("customers"), "👥"], ["/sales", t("sales"), "🗂️"]];
+  if(PROFILE.role === "owner"){ items.push(["/reports", t("reports"), "📊"]); items.push(["/staff", t("staff"), "👔"]); }
+  return items;
+}
+function layout(content){
+  const items = navItems();
+  return `
+  <div class="max-w-5xl mx-auto px-3 pt-4">
+    <div class="flex items-center justify-between mb-4">
+      <h1 class="text-lg font-bold flex items-center gap-2">🏪 ${t("appName")}</h1>
+      <div class="flex items-center gap-2">
+        ${langToggle()}
+        ${SESSION ? `<button onclick="doLogout()" class="text-xs font-semibold px-2.5 py-1 rounded-full border border-slate-300 bg-white">${t("logout")}</button>` : ""}
+      </div>
+    </div>
+    ${SHOP && PROFILE && PROFILE.role !== "super_admin" ? `<p class="text-xs text-slate-500 mb-2">🏬 ${SHOP.name}${!SHOP.is_active ? " · <span class='text-red-600 font-semibold'>"+t("inactive")+"</span>":""}</p>` : ""}
+    <div id="content">${content}</div>
+  </div>
+  ${items.length ? `
+  <nav class="no-print fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-20">
+    <div class="max-w-5xl mx-auto flex justify-around overflow-x-auto py-1.5">
+      ${items.map(([path,label,icon]) => `
+        <button onclick="nav('${path}')" class="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-[11px] min-w-14 ${ROUTE===path?"bg-emerald-50 text-emerald-700":"text-slate-500"}">
+          <span class="text-lg leading-none">${icon}</span><span class="whitespace-nowrap">${label}</span>
+        </button>`).join("")}
+    </div>
+  </nav>` : ""}`;
+}
+async function doLogout(){ await sb.auth.signOut(); SESSION=null; PROFILE=null; SHOP=null; nav("/login"); render(); }
+
+/* ======================= LOGIN / SETUP ======================= */
+function loginView(){
+  return `
+  <div class="max-w-sm mx-auto mt-16 bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+    <h1 class="text-xl font-bold text-center mb-1">🏪 ${t("appName")}</h1>
+    <p class="text-center text-sm text-slate-500 mb-5">${t("login")}</p>
+    <form onsubmit="doLogin(event)" class="space-y-3">
+      <div><label class="text-xs font-medium text-slate-600">${t("email")}</label>
+        <input required type="email" id="li-email" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300"/></div>
+      <div><label class="text-xs font-medium text-slate-600">${t("password")}</label>
+        <input required type="password" id="li-pass" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300"/></div>
+      <button class="w-full bg-emerald-600 text-white font-semibold py-2.5 rounded-lg">${t("loginBtn")}</button>
+    </form>
+  </div>`;
+}
+async function doLogin(e){
+  e.preventDefault();
+  const email = document.getElementById("li-email").value, password = document.getElementById("li-pass").value;
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  if(error) return toast(error.message, true);
+  await loadSession();
+  nav(PROFILE?.role === "super_admin" ? "/admin" : "/dashboard");
+  render();
+}
+function setupView(){
+  return `
+  <div class="max-w-sm mx-auto mt-16 bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+    <h1 class="text-lg font-bold text-center mb-4">${t("setupTitle")}</h1>
+    <form onsubmit="doSetup(event)" class="space-y-3">
+      <div><label class="text-xs font-medium text-slate-600">${t("yourName")}</label>
+        <input required id="su-name" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300"/></div>
+      <div><label class="text-xs font-medium text-slate-600">${t("email")}</label>
+        <input required type="email" id="su-email" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300"/></div>
+      <div><label class="text-xs font-medium text-slate-600">${t("password")}</label>
+        <input required minlength="6" type="password" id="su-pass" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300"/></div>
+      <button class="w-full bg-emerald-600 text-white font-semibold py-2.5 rounded-lg">${t("setupBtn")}</button>
+    </form>
+  </div>`;
+}
+async function doSetupReal(e){
+  e.preventDefault();
+  const name = document.getElementById("su-name").value, email = document.getElementById("su-email").value, password = document.getElementById("su-pass").value;
+  try{
+    await callFn("bootstrap_super_admin", { name, email, password });
+    toast(t("setupDone"));
+    nav("/login"); render();
+  }catch(err){ toast(err.message, true); }
+}
+window.doSetup = doSetupReal;
+
+/* ======================= DASHBOARD ======================= */
+async function dashboardView(){
+  if(PROFILE.role === "super_admin"){ nav("/admin"); return ""; }
+  if(SHOP && !SHOP.is_active) return `<p class="bg-white rounded-xl p-5 text-sm">${t("shopInactive")}</p>`;
+  const today = ymd(new Date());
+  const { start, end } = rangeISO(today, today);
+  const { data: todaySales } = await sb.from("sales").select("total").gte("created_at",start).lt("created_at",end);
+  const todayTotal = (todaySales||[]).reduce((a,s)=>a+Number(s.total),0);
+  const { data: dueCustomers } = await sb.from("customers").select("due_amount").gt("due_amount",0);
+  const totalDue = (dueCustomers||[]).reduce((a,c)=>a+Number(c.due_amount),0);
+  const { data: lowStock } = await sb.from("products").select("id,name,stock_qty,low_stock_level");
+  const low = (lowStock||[]).filter(p=>Number(p.stock_qty)<=Number(p.low_stock_level));
+  return `
+  <div class="grid grid-cols-2 gap-3">
+    <div class="bg-white rounded-xl p-4 border border-slate-200"><p class="text-xs text-slate-500">${t("total")} (${t("dashboard")})</p><p class="text-xl font-bold num">${fmt(todayTotal)}</p></div>
+    <div class="bg-white rounded-xl p-4 border border-slate-200"><p class="text-xs text-slate-500">${t("due")}</p><p class="text-xl font-bold num text-red-600">${fmt(totalDue)}</p></div>
+  </div>
+  <div class="bg-white rounded-xl p-4 border border-slate-200 mt-3">
+    <p class="text-sm font-semibold mb-2">⚠️ Low stock</p>
+    ${low.length===0? `<p class="text-sm text-slate-400">${t("noData")}</p>` : `<ul class="text-sm divide-y divide-slate-100">${low.map(p=>`<li class="py-1.5 flex justify-between"><span>${p.name}</span><span class="num text-red-600 font-semibold">${Number(p.stock_qty)}</span></li>`).join("")}</ul>`}
+  </div>
+  <div class="grid grid-cols-2 gap-3 mt-3">
+    <button onclick="nav('/pos')" class="bg-emerald-600 text-white rounded-xl py-4 font-semibold">🧾 ${t("pos")}</button>
+    <button onclick="nav('/customers')" class="bg-white border border-slate-200 rounded-xl py-4 font-semibold">👥 ${t("customers")}</button>
+  </div>`;
+}
+function ymd(d){ const p=n=>String(n).padStart(2,"0"); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`; }
+function rangeISO(from,to){ const s=new Date(from+"T00:00:00"), e=new Date(to+"T00:00:00"); e.setDate(e.getDate()+1); return {start:s.toISOString(), end:e.toISOString()}; }
+
+/* ======================= POS ======================= */
+let CART = [];
+async function posView(){
+  const { data: products } = await sb.from("products").select("id,name,sku,sell_price,stock_qty").order("name");
+  window.__PRODUCTS = products||[];
+  return `
+  <div class="grid md:grid-cols-[1fr_340px] gap-4">
+    <div>
+      <input id="pos-q" oninput="renderProductGrid()" onkeydown="if(event.key==='Enter'){addFirstMatch()}" placeholder="${t('searchProduct')}" class="w-full px-3 py-3 rounded-lg border border-slate-300 mb-3" autofocus/>
+      <div id="pos-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-2"></div>
+    </div>
+    <div class="bg-white border border-slate-200 rounded-xl p-4 space-y-3 h-fit">
+      <h2 class="font-semibold">${t('cart')} <span class="text-xs text-slate-400 num">(${CART.length})</span></h2>
+      <div id="pos-cart"></div>
+      <div>
+        <label class="text-xs font-medium text-slate-600">${t('customer')}</label>
+        <div id="pos-customer"></div>
+      </div>
+      <div id="pos-totals" class="space-y-1.5 text-sm num"></div>
+      <button onclick="completeSale()" class="w-full bg-emerald-600 text-white font-semibold py-3 rounded-lg">${t('completeSale')}</button>
+    </div>
+  </div>`;
+}
+let POS_CUSTOMER = null;
+function renderProductGrid(){
+  const q = (document.getElementById("pos-q")?.value||"").toLowerCase().trim();
+  let list = window.__PRODUCTS||[];
+  list = q ? list.filter(p=>p.name.toLowerCase().includes(q) || (p.sku||"").toLowerCase().includes(q)) : list.slice(0,12);
+  document.getElementById("pos-grid").innerHTML = list.map(p=>{
+    const out = Number(p.stock_qty)<=0;
+    return `<button ${out?"disabled":""} onclick="addToCart('${p.id}')" class="bg-white border border-slate-200 rounded-xl p-3 text-left ${out?"opacity-40":""}">
+      <p class="text-sm font-medium line-clamp-2">${p.name}</p>
+      <p class="num font-bold text-emerald-700 mt-1">${fmt(p.sell_price)}</p>
+      <p class="num text-xs text-slate-400">${out?t('outOfStock'):(t('stock')+': '+Number(p.stock_qty))}</p></button>`;
+  }).join("") || `<p class="text-sm text-slate-400 col-span-3">${t('noData')}</p>`;
+}
+function addFirstMatch(){
+  const q = (document.getElementById("pos-q")?.value||"").toLowerCase().trim();
+  const list = (window.__PRODUCTS||[]).filter(p=>p.name.toLowerCase().includes(q) || (p.sku||"").toLowerCase().includes(q));
+  if(list[0]){ addToCart(list[0].id); document.getElementById("pos-q").value=""; renderProductGrid(); }
+}
+function addToCart(id){
+  const p = (window.__PRODUCTS||[]).find(x=>x.id===id); if(!p) return;
+  const line = CART.find(l=>l.p.id===id);
+  const nextQty = (line?line.qty:0)+1;
+  if(nextQty > Number(p.stock_qty)) return toast(t('notEnoughStock'), true);
+  if(line) line.qty = nextQty; else CART.push({p, qty:1});
+  renderCart();
+}
+function setQty(id, qty){
+  const line = CART.find(l=>l.p.id===id); if(!line) return;
+  if(qty > Number(line.p.stock_qty)) return toast(t('notEnoughStock'), true);
+  if(qty<=0) CART = CART.filter(l=>l.p.id!==id); else line.qty = qty;
+  renderCart();
+}
+function cartTotals(){
+  const subtotal = CART.reduce((s,l)=>s+l.qty*Number(l.p.sell_price),0);
+  const discount = Math.min(Math.max(Number(document.getElementById("pos-discount")?.value||0),0), subtotal);
+  const grand = subtotal - discount;
+  const paidInput = document.getElementById("pos-paid")?.value;
+  const paid = paidInput===""||paidInput===undefined ? grand : Math.max(Number(paidInput)||0,0);
+  const due = Math.max(grand-paid,0), change = Math.max(paid-grand,0);
+  return {subtotal,discount,grand,paid,due,change};
+}
+function renderCart(){
+  document.getElementById("pos-cart").innerHTML = CART.length===0 ? `<p class="text-sm text-slate-400">${t('emptyCart')}</p>` :
+    `<ul class="divide-y divide-slate-100">${CART.map(l=>`
+      <li class="py-2 flex items-center gap-2">
+        <div class="flex-1 min-w-0"><p class="text-sm truncate">${l.p.name}</p><p class="num text-xs text-slate-400">${fmt(l.p.sell_price)} × ${l.qty} = ${fmt(l.qty*l.p.sell_price)}</p></div>
+        <button onclick="setQty('${l.p.id}',${l.qty-1})" class="w-7 h-7 rounded border border-slate-300">−</button>
+        <span class="num w-6 text-center">${l.qty}</span>
+        <button onclick="setQty('${l.p.id}',${l.qty+1})" class="w-7 h-7 rounded border border-slate-300">+</button>
+      </li>`).join("")}</ul>`;
+  document.getElementById("pos-customer").innerHTML = POS_CUSTOMER ?
+    `<div class="flex items-center justify-between bg-slate-100 rounded-lg px-3 py-2 text-sm mt-1"><span>${POS_CUSTOMER.name}</span><button onclick="POS_CUSTOMER=null;renderCart()" class="text-xs underline">${t('walkIn')}</button></div>` :
+    `<input id="pos-cust-q" placeholder="${t('walkIn')} · ${t('search')}" oninput="renderCustPick()" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300 text-sm"/><div id="pos-cust-results"></div>`;
+  renderTotals();
+}
+async function renderCustPick(){
+  const q = document.getElementById("pos-cust-q").value.trim();
+  if(!q){ document.getElementById("pos-cust-results").innerHTML=""; return; }
+  const { data } = await sb.from("customers").select("id,name,phone,due_amount").ilike("name",`%${q}%`).limit(6);
+  document.getElementById("pos-cust-results").innerHTML = (data||[]).map(c=>
+    `<button onclick='pickCustomer(${JSON.stringify(c.id)},${JSON.stringify(c.name)})' class="w-full text-left px-2 py-1.5 text-sm hover:bg-slate-50 rounded flex justify-between"><span>${c.name} <span class="text-xs text-slate-400">${c.phone||""}</span></span><span class="num text-xs text-red-600">${fmt(c.due_amount)}</span></button>`
+  ).join("");
+}
+function pickCustomer(id,name){ POS_CUSTOMER = {id,name}; renderCart(); }
+function renderTotals(){
+  const {subtotal,discount,grand,due,change} = cartTotals();
+  document.getElementById("pos-totals").innerHTML = `
+    <div class="flex justify-between"><span>${t('subtotal')}</span><span>${fmt(subtotal)}</span></div>
+    <div class="flex justify-between items-center gap-2"><span>${t('discount')}</span><input id="pos-discount" type="number" value="0" oninput="renderTotals()" class="w-24 text-right px-2 py-1 border border-slate-300 rounded"/></div>
+    <div class="flex justify-between font-bold text-base"><span>${t('grandTotal')}</span><span>${fmt(grand)}</span></div>
+    <div class="flex justify-between items-center gap-2"><span>${t('paid')}</span><input id="pos-paid" type="number" placeholder="${grand}" oninput="renderTotals()" class="w-24 text-right px-2 py-1 border border-slate-300 rounded"/></div>
+    <div class="flex justify-between text-red-600"><span>${t('due')}</span><span>${fmt(due)}</span></div>
+    ${change>0?`<div class="flex justify-between text-slate-500"><span>${t('change')}</span><span>${fmt(change)}</span></div>`:""}`;
+}
+async function completeSale(){
+  if(CART.length===0) return;
+  const {discount,grand,paid,due} = cartTotals();
+  if(due>0 && !POS_CUSTOMER) return toast(t('dueNeedsCustomer'), true);
+  try{
+    const { data: sale, error } = await sb.from("sales").insert({ shop_id: PROFILE.shop_id, customer_id: POS_CUSTOMER?.id||null, created_by: PROFILE.id, total: grand, discount, paid: Math.min(paid,grand), due }).select("id").single();
+    if(error) throw error;
+    const { error: iErr } = await sb.from("sale_items").insert(CART.map(l=>({ sale_id: sale.id, product_id: l.p.id, qty: l.qty, unit_price: l.p.sell_price, subtotal: l.qty*l.p.sell_price })));
+    if(iErr) throw iErr;
+    toast(t('saleDone'));
+    CART = []; POS_CUSTOMER = null;
+    nav('/receipt/'+sale.id);
+  }catch(e){ toast(e.message||t('error'), true); }
+}
+
+/* ======================= RECEIPT ======================= */
+async function receiptView(saleId){
+  const { data: s } = await sb.from("sales").select("id,total,discount,paid,due,created_at,customers(name)").eq("id",saleId).single();
+  const { data: items } = await sb.from("sale_items").select("id,qty,unit_price,subtotal,products(name)").eq("sale_id",saleId);
+  if(!s) return `<p>${t('noData')}</p>`;
+  const sub = (items||[]).reduce((a,i)=>a+Number(i.subtotal),0);
+  return `
+  <div class="no-print flex gap-2 mb-3">
+    <button onclick="history.back()" class="px-3 py-2 border border-slate-300 rounded-lg text-sm">${t('back')}</button>
+    <button onclick="window.print()" class="px-3 py-2 bg-emerald-600 text-white rounded-lg text-sm">${t('print')}</button>
+  </div>
+  <div class="bg-white border border-slate-200 rounded-xl p-5 max-w-sm mx-auto text-sm">
+    <div class="text-center"><p class="font-bold text-lg">${SHOP?.name||""}</p><p class="text-xs text-slate-500">${SHOP?.address||""}</p><p class="font-semibold mt-2">${t('receipt')}</p></div>
+    <div class="flex justify-between text-xs text-slate-500 mt-3"><span>${t('billNo')}: ${s.id.slice(0,8).toUpperCase()}</span><span>${new Date(s.created_at).toLocaleString()}</span></div>
+    <p class="text-xs text-slate-500">${t('customer')}: ${s.customers?.name || t('walkIn')}</p>
+    <table class="w-full mt-2"><tbody class="divide-y divide-dashed divide-slate-200">
+      ${(items||[]).map(i=>`<tr><td class="py-1.5">${i.products?.name||''}<div class="text-xs text-slate-400 num">${i.qty} × ${fmt(i.unit_price)}</div></td><td class="text-right py-1.5 num">${fmt(i.subtotal)}</td></tr>`).join("")}
+    </tbody></table>
+    <div class="num space-y-1 border-t border-slate-200 pt-2 mt-2">
+      <div class="flex justify-between"><span>${t('subtotal')}</span><span>${fmt(sub)}</span></div>
+      <div class="flex justify-between"><span>${t('discount')}</span><span>${fmt(s.discount)}</span></div>
+      <div class="flex justify-between font-bold"><span>${t('grandTotal')}</span><span>${fmt(s.total)}</span></div>
+      <div class="flex justify-between"><span>${t('paid')}</span><span>${fmt(s.paid)}</span></div>
+      <div class="flex justify-between"><span>${t('due')}</span><span>${fmt(s.due)}</span></div>
+    </div>
+    <p class="text-center text-xs text-slate-400 mt-3">${t('thankYou')}</p>
+  </div>`;
+}
+
+/* ======================= PRODUCTS ======================= */
+async function productsView(){
+  const owner = PROFILE.role === "owner";
+  const { data: list } = owner ? await sb.rpc("products_with_cost") : await sb.from("products").select("id,name,category,sell_price,stock_qty,low_stock_level,sku").order("name");
+  window.__PLIST = list||[];
+  return `
+  <div class="flex justify-between items-center mb-3">
+    <h1 class="text-lg font-bold">${t('products')}</h1>
+    ${owner?`<button onclick="openProductForm(null)" class="bg-emerald-600 text-white text-sm font-semibold px-3 py-2 rounded-lg">+ ${t('addProduct')}</button>`:""}
+  </div>
+  <input id="prod-q" oninput="renderProductList()" placeholder="${t('search')}" class="w-full px-3 py-2 rounded-lg border border-slate-300 mb-3"/>
+  <div id="prod-list"></div>
+  <div id="modal"></div>`;
+}
+function renderProductList(){
+  const q = (document.getElementById("prod-q")?.value||"").toLowerCase();
+  const owner = PROFILE.role === "owner";
+  const list = (window.__PLIST||[]).filter(p=>!q||p.name.toLowerCase().includes(q)||(p.sku||"").toLowerCase().includes(q)||(p.category||"").toLowerCase().includes(q));
+  document.getElementById("prod-list").innerHTML = list.length===0 ? `<p class="text-sm text-slate-400">${t('noData')}</p>` :
+    `<ul class="space-y-2">${list.map(p=>{
+      const low = Number(p.stock_qty)<=Number(p.low_stock_level);
+      return `<li class="bg-white border ${low?"border-red-200 bg-red-50":"border-slate-200"} rounded-xl p-3 flex items-center gap-3">
+        <div class="flex-1 min-w-0"><p class="font-medium truncate">${p.name}</p>
+          <p class="text-xs text-slate-400 num">${[p.category,p.sku].filter(Boolean).join(' · ')}</p>
+          <p class="num text-sm"><span class="font-semibold text-emerald-700">${fmt(p.sell_price)}</span>${owner && p.buy_price!==undefined?` <span class="text-xs text-slate-400">${t('buyPrice')}: ${fmt(p.buy_price)}</span>`:""}</p></div>
+        <div class="flex items-center gap-1">
+          <button onclick="adjustStock('${p.id}',-1)" class="w-7 h-7 border border-slate-300 rounded">−</button>
+          <span class="num w-8 text-center font-bold ${low?"text-red-600":""}">${Number(p.stock_qty)}</span>
+          <button onclick="adjustStock('${p.id}',1)" class="w-7 h-7 border border-slate-300 rounded">+</button>
+        </div>
+        ${owner?`<button onclick='openProductForm(${JSON.stringify(p).replace(/'/g,"&#39;")})' class="text-slate-400">✏️</button><button onclick="deleteProduct('${p.id}')" class="text-red-400">🗑️</button>`:""}
+      </li>`;
+    }).join("")}</ul>`;
+}
+async function adjustStock(id, dir){
+  const n = prompt(t('stockQty'), "1"); if(n===null) return;
+  const p = (window.__PLIST||[]).find(x=>x.id===id); if(!p) return;
+  const next = Math.max(0, Number(p.stock_qty) + dir*(Number(n)||0));
+  const { error } = await sb.from("products").update({ stock_qty: next }).eq("id", id);
+  if(error) return toast(error.message, true);
+  toast(t('stockUpdated')); render();
+}
+async function deleteProduct(id){
+  if(!confirm(t('confirmDelete'))) return;
+  const { error } = await sb.from("products").delete().eq("id", id);
+  if(error) return toast(error.message, true);
+  toast(t('productDeleted')); render();
+}
+function openProductForm(p){
+  document.getElementById("modal").innerHTML = `
+  <div class="fixed inset-0 bg-black/40 flex items-center justify-center z-30 p-3">
+    <div class="bg-white rounded-xl p-5 w-full max-w-sm space-y-3">
+      <h2 class="font-bold">${p?t('editProduct'):t('addProduct')}</h2>
+      <form onsubmit="saveProduct(event,'${p?p.id:''}')" class="space-y-2">
+        <input required id="pf-name" placeholder="${t('productName')}" value="${p?.name||''}" class="w-full px-3 py-2 border border-slate-300 rounded-lg"/>
+        <input id="pf-cat" placeholder="${t('category')}" value="${p?.category||''}" class="w-full px-3 py-2 border border-slate-300 rounded-lg"/>
+        <input id="pf-sku" placeholder="${t('sku')}" value="${p?.sku||''}" class="w-full px-3 py-2 border border-slate-300 rounded-lg"/>
+        <div class="grid grid-cols-2 gap-2">
+          <input id="pf-buy" type="number" step="any" placeholder="${t('buyPrice')}" value="${p?.buy_price??''}" class="px-3 py-2 border border-slate-300 rounded-lg"/>
+          <input required id="pf-sell" type="number" step="any" placeholder="${t('sellPrice')}" value="${p?.sell_price??''}" class="px-3 py-2 border border-slate-300 rounded-lg"/>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <input id="pf-stock" type="number" step="any" placeholder="${t('stockQty')}" value="${p?.stock_qty??0}" class="px-3 py-2 border border-slate-300 rounded-lg"/>
+          <input id="pf-low" type="number" step="any" placeholder="${t('lowStockLevel')}" value="${p?.low_stock_level??5}" class="px-3 py-2 border border-slate-300 rounded-lg"/>
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="document.getElementById('modal').innerHTML=''" class="px-3 py-2 border border-slate-300 rounded-lg text-sm">${t('cancel')}</button>
+          <button class="px-3 py-2 bg-emerald-600 text-white rounded-lg text-sm">${t('save')}</button>
+        </div>
+      </form>
+    </div>
+  </div>`;
+}
+async function saveProduct(e, id){
+  e.preventDefault();
+  const row = { name: document.getElementById("pf-name").value.trim(), category: document.getElementById("pf-cat").value.trim()||null,
+    sku: document.getElementById("pf-sku").value.trim()||null, buy_price: Number(document.getElementById("pf-buy").value)||0,
+    sell_price: Number(document.getElementById("pf-sell").value)||0, stock_qty: Number(document.getElementById("pf-stock").value)||0,
+    low_stock_level: Number(document.getElementById("pf-low").value)||0 };
+  const q = id ? sb.from("products").update(row).eq("id",id) : sb.from("products").insert({...row, shop_id: PROFILE.shop_id});
+  const { error } = await q;
+  if(error) return toast(error.message, true);
+  toast(t('productSaved')); document.getElementById("modal").innerHTML=""; render();
+}
+
+/* ======================= CUSTOMERS ======================= */
+async function customersView(){
+  const { data } = await sb.from("customers").select("id,name,phone,address,due_amount").order("name");
+  window.__CLIST = data||[];
+  return `
+  <div class="flex justify-between items-center mb-3">
+    <h1 class="text-lg font-bold">${t('customers')}</h1>
+    <button onclick="openCustomerForm(null)" class="bg-emerald-600 text-white text-sm font-semibold px-3 py-2 rounded-lg">+ ${t('addCustomer')}</button>
+  </div>
+  <input id="cust-q" oninput="renderCustList()" placeholder="${t('search')}" class="w-full px-3 py-2 rounded-lg border border-slate-300 mb-3"/>
+  <div id="cust-list"></div><div id="modal"></div>`;
+}
+function renderCustList(){
+  const q = (document.getElementById("cust-q")?.value||"").toLowerCase();
+  const list = (window.__CLIST||[]).filter(c=>!q||c.name.toLowerCase().includes(q)||(c.phone||"").includes(q));
+  document.getElementById("cust-list").innerHTML = list.length===0? `<p class="text-sm text-slate-400">${t('noData')}</p>` :
+   `<ul class="space-y-2">${list.map(c=>`
+    <li class="bg-white border border-slate-200 rounded-xl p-3 flex items-center gap-3">
+      <button onclick='openCustomerDetail(${JSON.stringify(c.id)})' class="flex-1 min-w-0 text-left"><p class="font-medium truncate">${c.name}</p><p class="text-xs text-slate-400">${c.phone||''}</p></button>
+      <span class="num font-bold ${Number(c.due_amount)>0?'text-red-600':'text-slate-400'}">${fmt(c.due_amount)}</span>
+      <button onclick='openCustomerForm(${JSON.stringify(c).replace(/'/g,"&#39;")})' class="text-slate-400">✏️</button>
+    </li>`).join("")}</ul>`;
+}
+function openCustomerForm(c){
+  document.getElementById("modal").innerHTML = `
+  <div class="fixed inset-0 bg-black/40 flex items-center justify-center z-30 p-3">
+    <div class="bg-white rounded-xl p-5 w-full max-w-sm space-y-3">
+      <h2 class="font-bold">${c?t('editCustomer'):t('addCustomer')}</h2>
+      <form onsubmit="saveCustomer(event,'${c?c.id:''}')" class="space-y-2">
+        <input required id="cf-name" placeholder="${t('name')}" value="${c?.name||''}" class="w-full px-3 py-2 border border-slate-300 rounded-lg"/>
+        <input id="cf-phone" placeholder="${t('phone')}" value="${c?.phone||''}" class="w-full px-3 py-2 border border-slate-300 rounded-lg"/>
+        <input id="cf-addr" placeholder="${t('address')}" value="${c?.address||''}" class="w-full px-3 py-2 border border-slate-300 rounded-lg"/>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="document.getElementById('modal').innerHTML=''" class="px-3 py-2 border border-slate-300 rounded-lg text-sm">${t('cancel')}</button>
+          <button class="px-3 py-2 bg-emerald-600 text-white rounded-lg text-sm">${t('save')}</button>
+        </div>
+      </form>
+    </div>
+  </div>`;
+}
+async function saveCustomer(e,id){
+  e.preventDefault();
+  const row = { name: document.getElementById("cf-name").value.trim(), phone: document.getElementById("cf-phone").value.trim()||null, address: document.getElementById("cf-addr").value.trim()||null };
+  const q = id ? sb.from("customers").update(row).eq("id",id) : sb.from("customers").insert({...row, shop_id: PROFILE.shop_id});
+  const { error } = await q;
+  if(error) return toast(error.message, true);
+  toast(t('customerSaved')); document.getElementById("modal").innerHTML=""; render();
+}
+async function openCustomerDetail(id){
+  const c = (window.__CLIST||[]).find(x=>x.id===id); if(!c) return;
+  const { data: pays } = await sb.from("due_payments").select("id,amount,created_at").eq("customer_id",id).order("created_at",{ascending:false});
+  document.getElementById("modal").innerHTML = `
+  <div class="fixed inset-0 bg-black/40 flex items-center justify-center z-30 p-3">
+    <div class="bg-white rounded-xl p-5 w-full max-w-sm space-y-3 max-h-[85vh] overflow-auto">
+      <h2 class="font-bold">${c.name}</h2>
+      <p class="text-xs text-slate-500">${[c.phone,c.address].filter(Boolean).join(' · ')}</p>
+      <div class="bg-slate-100 rounded-lg p-3"><p class="text-xs">${t('dueBalance')}</p><p class="num text-2xl font-bold text-red-600">${fmt(c.due_amount)}</p></div>
+      <form onsubmit="collectDue(event,'${id}')" class="flex gap-2">
+        <input required id="dp-amt" type="number" step="any" min="0" placeholder="${t('amount')}" class="flex-1 px-3 py-2 border border-slate-300 rounded-lg"/>
+        <button class="px-3 py-2 bg-emerald-600 text-white rounded-lg text-sm">${t('collectDue')}</button>
+      </form>
+      <div><h3 class="text-sm font-semibold mb-1">${t('paymentHistory')}</h3>
+        ${(pays||[]).length===0?`<p class="text-sm text-slate-400">${t('noData')}</p>`:`<ul class="text-sm divide-y divide-slate-100">${pays.map(p=>`<li class="flex justify-between py-1.5"><span class="text-slate-400">${new Date(p.created_at).toLocaleString()}</span><span class="num font-medium">${fmt(p.amount)}</span></li>`).join("")}</ul>`}
+      </div>
+      <button onclick="document.getElementById('modal').innerHTML=''" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">${t('back')}</button>
+    </div>
+  </div>`;
+}
+async function collectDue(e,customerId){
+  e.preventDefault();
+  const amount = Number(document.getElementById("dp-amt").value);
+  if(!(amount>0)) return;
+  const { error } = await sb.from("due_payments").insert({ shop_id: PROFILE.shop_id, customer_id: customerId, amount, created_by: PROFILE.id });
+  if(error) return toast(error.message, true);
+  toast(t('duePaid')); document.getElementById("modal").innerHTML=""; render();
+}
+
+/* ======================= SALES HISTORY ======================= */
+async function salesView(){
+  const today = ymd(new Date());
+  return `
+  <h1 class="text-lg font-bold mb-3">${t('sales')}</h1>
+  <div class="bg-white border border-slate-200 rounded-xl p-3 grid grid-cols-2 gap-3 mb-3">
+    <div><label class="text-xs text-slate-500">${t('from')}</label><input id="s-from" type="date" value="${today}" onchange="renderSalesList()" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg"/></div>
+    <div><label class="text-xs text-slate-500">${t('to')}</label><input id="s-to" type="date" value="${today}" onchange="renderSalesList()" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg"/></div>
+  </div>
+  <div id="sales-summary" class="text-sm text-slate-500 mb-2 num"></div>
+  <div id="sales-list"></div>`;
+}
+async function renderSalesList(){
+  const from = document.getElementById("s-from").value, to = document.getElementById("s-to").value;
+  const { start, end } = rangeISO(from,to);
+  const { data } = await sb.from("sales").select("id,total,paid,due,created_at,customers(name)").gte("created_at",start).lt("created_at",end).order("created_at",{ascending:false});
+  const list = data||[];
+  const sum = list.reduce((a,s)=>a+Number(s.total),0);
+  document.getElementById("sales-summary").textContent = `${t('billCount')}: ${list.length} · ${t('total')}: ${fmt(sum)}`;
+  document.getElementById("sales-list").innerHTML = list.length===0? `<p class="text-sm text-slate-400">${t('noSales')}</p>` :
+   `<ul class="space-y-2">${list.map(s=>`
+    <li><button onclick="nav('/receipt/${s.id}')" class="w-full bg-white border border-slate-200 rounded-xl p-3 flex items-center gap-3 text-left">
+      <div class="flex-1 min-w-0"><p class="num text-sm font-medium">#${s.id.slice(0,8).toUpperCase()}</p><p class="text-xs text-slate-400">${s.customers?.name||t('walkIn')} · ${new Date(s.created_at).toLocaleString()}</p></div>
+      <div class="text-right num"><p class="font-bold">${fmt(s.total)}</p>${Number(s.due)>0?`<p class="text-xs text-red-600">${t('due')}: ${fmt(s.due)}</p>`:""}</div>
+    </button></li>`).join("")}</ul>`;
+}
+
+/* ======================= REPORTS ======================= */
+async function reportsView(){
+  if(PROFILE.role !== "owner") return `<p class="bg-white rounded-xl p-5 text-sm">${t('noAccess')}</p>`;
+  const now = new Date();
+  const from0 = ymd(new Date(now.getFullYear(),now.getMonth(),1)), to0 = ymd(now);
+  setTimeout(()=>renderReport(),0);
+  return `
+  <h1 class="text-lg font-bold mb-3">${t('profitLoss')}</h1>
+  <div class="bg-white border border-slate-200 rounded-xl p-3 grid grid-cols-2 gap-3 mb-3">
+    <div><label class="text-xs text-slate-500">${t('from')}</label><input id="r-from" type="date" value="${from0}" onchange="renderReport()" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg"/></div>
+    <div><label class="text-xs text-slate-500">${t('to')}</label><input id="r-to" type="date" value="${to0}" onchange="renderReport()" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg"/></div>
+  </div>
+  <div id="report-grid" class="grid grid-cols-2 gap-3"></div>`;
+}
+async function renderReport(){
+  const from = document.getElementById("r-from").value, to = document.getElementById("r-to").value;
+  const { start, end } = rangeISO(from,to);
+  const { data } = await sb.rpc("profit_report", { _from: start, _to: end });
+  const r = (data && data[0]) || {};
+  const profit = Number(r.profit||0);
+  const stat = (l,v,cls="") => `<div class="bg-white border border-slate-200 rounded-xl p-4"><p class="text-xs text-slate-500">${l}</p><p class="num text-xl font-bold ${cls}">${v}</p></div>`;
+  document.getElementById("report-grid").innerHTML =
+    stat(t('total'), fmt(r.total_sales||0)) + stat(t('totalCost'), fmt(r.total_cost||0)) +
+    stat(profit>=0?t('profit'):t('loss'), fmt(Math.abs(profit)), profit>=0?"text-emerald-700":"text-red-600") +
+    stat(t('billCount'), String(r.sale_count||0)) + stat(t('totalDiscount'), fmt(r.total_discount||0));
+}
+
+/* ======================= STAFF ======================= */
+async function staffView(){
+  if(PROFILE.role !== "owner") return `<p class="bg-white rounded-xl p-5 text-sm">${t('noAccess')}</p>`;
+  const { data } = await sb.from("profiles").select("id,name,is_active").eq("shop_id",PROFILE.shop_id).eq("role","employee").order("name");
+  window.__STAFF = data||[];
+  return `
+  <div class="flex justify-between items-center mb-3"><h1 class="text-lg font-bold">${t('staff')}</h1>
+    <button onclick="openStaffForm()" class="bg-emerald-600 text-white text-sm font-semibold px-3 py-2 rounded-lg">+ ${t('addEmployee')}</button></div>
+  <ul class="space-y-2">${(window.__STAFF||[]).map(s=>`
+    <li class="bg-white border border-slate-200 rounded-xl p-3 flex items-center justify-between">
+      <div><p class="font-medium">${s.name}</p><p class="text-xs text-slate-400">${s.is_active?t('active'):t('inactive')}</p></div>
+      <button onclick="toggleStaff('${s.id}',${!s.is_active})" class="text-xs px-2 py-1 border border-slate-300 rounded-full">${s.is_active?t('inactive'):t('active')}</button>
+    </li>`).join("") || `<p class="text-sm text-slate-400">${t('noData')}</p>`}</ul>
+  <div id="modal"></div>`;
+}
+async function toggleStaff(id, val){
+  const { error } = await sb.from("profiles").update({ is_active: val }).eq("id", id);
+  if(error) return toast(error.message, true);
+  render();
+}
+function openStaffForm(){
+  document.getElementById("modal").innerHTML = `
+  <div class="fixed inset-0 bg-black/40 flex items-center justify-center z-30 p-3">
+    <div class="bg-white rounded-xl p-5 w-full max-w-sm space-y-3">
+      <h2 class="font-bold">${t('addEmployee')}</h2>
+      <form onsubmit="submitStaff(event)" class="space-y-2">
+        <input required id="ef-name" placeholder="${t('name')}" class="w-full px-3 py-2 border border-slate-300 rounded-lg"/>
+        <input required type="email" id="ef-email" placeholder="${t('email')}" class="w-full px-3 py-2 border border-slate-300 rounded-lg"/>
+        <input required minlength="6" type="password" id="ef-pass" placeholder="${t('password')}" class="w-full px-3 py-2 border border-slate-300 rounded-lg"/>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="document.getElementById('modal').innerHTML=''" class="px-3 py-2 border border-slate-300 rounded-lg text-sm">${t('cancel')}</button>
+          <button class="px-3 py-2 bg-emerald-600 text-white rounded-lg text-sm">${t('save')}</button>
+        </div>
+      </form>
+    </div>
+  </div>`;
+}
+async function submitStaff(e){
+  e.preventDefault();
+  try{
+    await callFn("create_employee", { name: document.getElementById("ef-name").value, email: document.getElementById("ef-email").value, password: document.getElementById("ef-pass").value });
+    toast(t('employeeCreated')); document.getElementById("modal").innerHTML=""; render();
+  }catch(err){ toast(err.message,true); }
+}
+
+/* ======================= SUPER ADMIN ======================= */
+async function adminView(){
+  if(PROFILE.role !== "super_admin") return `<p class="bg-white rounded-xl p-5 text-sm">${t('noAccess')}</p>`;
+  const { data } = await sb.from("shops").select("id,name,address,phone,is_active,created_at").order("created_at",{ascending:false});
+  window.__SHOPS = data||[];
+  return `
+  <div class="flex justify-between items-center mb-3"><h1 class="text-lg font-bold">${t('admin')} · ${t('shops')}</h1>
+    <button onclick="openShopForm()" class="bg-emerald-600 text-white text-sm font-semibold px-3 py-2 rounded-lg">+ ${t('addShop')}</button></div>
+  <ul class="space-y-2">${(window.__SHOPS||[]).map(s=>`
+    <li class="bg-white border border-slate-200 rounded-xl p-3 flex items-center justify-between gap-3">
+      <div class="min-w-0"><p class="font-medium truncate">${s.name}</p><p class="text-xs text-slate-400 truncate">${[s.address,s.phone].filter(Boolean).join(' · ')}</p>
+        <p class="text-xs ${s.is_active?'text-emerald-700':'text-red-600'}">${s.is_active?t('active'):t('inactive')}</p></div>
+      <button onclick="toggleShop('${s.id}',${!s.is_active})" class="text-xs px-2 py-1 border border-slate-300 rounded-full">${s.is_active?t('inactive'):t('active')}</button>
+    </li>`).join("") || `<p class="text-sm text-slate-400">${t('noData')}</p>`}</ul>
+  <div id="modal"></div>`;
+}
+async function toggleShop(id,val){
+  const { error } = await sb.from("shops").update({ is_active: val }).eq("id", id);
+  if(error) return toast(error.message, true);
+  render();
+}
+function openShopForm(){
+  document.getElementById("modal").innerHTML = `
+  <div class="fixed inset-0 bg-black/40 flex items-center justify-center z-30 p-3">
+    <div class="bg-white rounded-xl p-5 w-full max-w-sm space-y-2 max-h-[85vh] overflow-auto">
+      <h2 class="font-bold">${t('addShop')}</h2>
+      <form onsubmit="submitShop(event)" class="space-y-2">
+        <input required id="sf-shopname" placeholder="${t('shopName')}" class="w-full px-3 py-2 border border-slate-300 rounded-lg"/>
+        <input id="sf-address" placeholder="${t('address')}" class="w-full px-3 py-2 border border-slate-300 rounded-lg"/>
+        <input id="sf-phone" placeholder="${t('phone')}" class="w-full px-3 py-2 border border-slate-300 rounded-lg"/>
+        <input required id="sf-ownername" placeholder="${t('ownerName')}" class="w-full px-3 py-2 border border-slate-300 rounded-lg"/>
+        <input required type="email" id="sf-owneremail" placeholder="${t('ownerEmail')}" class="w-full px-3 py-2 border border-slate-300 rounded-lg"/>
+        <input required minlength="6" type="password" id="sf-ownerpass" placeholder="${t('ownerPassword')}" class="w-full px-3 py-2 border border-slate-300 rounded-lg"/>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="document.getElementById('modal').innerHTML=''" class="px-3 py-2 border border-slate-300 rounded-lg text-sm">${t('cancel')}</button>
+          <button class="px-3 py-2 bg-emerald-600 text-white rounded-lg text-sm">${t('save')}</button>
+        </div>
+      </form>
+    </div>
+  </div>`;
+}
+async function submitShop(e){
+  e.preventDefault();
+  try{
+    await callFn("create_shop_owner", { shopName: document.getElementById("sf-shopname").value, address: document.getElementById("sf-address").value, phone: document.getElementById("sf-phone").value,
+      ownerName: document.getElementById("sf-ownername").value, ownerEmail: document.getElementById("sf-owneremail").value, ownerPassword: document.getElementById("sf-ownerpass").value });
+    toast(t('shopCreated')); document.getElementById("modal").innerHTML=""; render();
+  }catch(err){ toast(err.message, true); }
+}
+
+/* ======================= ROUTER ======================= */
+async function render(){
+  if(!SESSION){
+    const hasAdmin = await checkSuperAdminExists();
+    app.innerHTML = layout(!hasAdmin ? setupView() : loginView());
+    return;
+  }
+  if(!PROFILE) await loadSession();
+  if(!PROFILE){ app.innerHTML = layout(loginView()); return; }
+  app.innerHTML = layout(`<p class="text-sm text-slate-400">${t('loading')}</p>`);
+  let html = "";
+  if(ROUTE.startsWith("/receipt/")) html = await receiptView(ROUTE.split("/")[2]);
+  else if(ROUTE === "/pos") { html = await posView(); }
+  else if(ROUTE === "/products") html = await productsView();
+  else if(ROUTE === "/customers") html = await customersView();
+  else if(ROUTE === "/sales") html = await salesView();
+  else if(ROUTE === "/reports") html = await reportsView();
+  else if(ROUTE === "/staff") html = await staffView();
+  else if(ROUTE === "/admin") html = await adminView();
+  else html = await dashboardView();
+  app.innerHTML = layout(html);
+  if(ROUTE === "/pos"){ renderProductGrid(); renderCart(); }
+  if(ROUTE === "/products") renderProductList();
+  if(ROUTE === "/customers") renderCustList();
+  if(ROUTE === "/sales") renderSalesList();
+}
+
+/* ======================= INIT ======================= */
+window.nav = nav; window.setLang = setLang; window.doLogin = doLogin; window.doLogout = doLogout;
+window.addToCart = addToCart; window.setQty = setQty; window.renderProductGrid = renderProductGrid; window.addFirstMatch = addFirstMatch;
+window.renderCustPick = renderCustPick; window.pickCustomer = pickCustomer; window.renderTotals = renderTotals; window.completeSale = completeSale;
+window.openProductForm = openProductForm; window.saveProduct = saveProduct; window.adjustStock = adjustStock; window.deleteProduct = deleteProduct; window.renderProductList = renderProductList;
+window.openCustomerForm = openCustomerForm; window.saveCustomer = saveCustomer; window.openCustomerDetail = openCustomerDetail; window.collectDue = collectDue; window.renderCustList = renderCustList;
+window.renderSalesList = renderSalesList; window.renderReport = renderReport;
+window.openStaffForm = openStaffForm; window.submitStaff = submitStaff; window.toggleStaff = toggleStaff;
+window.openShopForm = openShopForm; window.submitShop = submitShop; window.toggleShop = toggleShop;
+
+(async () => { await loadSession(); await render(); })();
+</script>
+</body>
+</html>
