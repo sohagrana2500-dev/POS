@@ -80,8 +80,9 @@ function toast(msg, isErr){
 
 /* ======================= AUTH / BOOTSTRAP ======================= */
 async function checkSuperAdminExists(){
-  const { count } = await sb.from("profiles").select("id",{count:"exact",head:true});
-  return (count||0) > 0;
+  const { data, error } = await sb.rpc("setup_done");
+  if(error) return false;
+  return !!data;
 }
 async function loadSession(){
   const { data:{ session } } = await sb.auth.getSession();
