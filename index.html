@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>দোকান হিসাব — Ops System</title>
+<title>SR Tach Lab POS System</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Tiro+Bangla:ital@0;1&family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -425,6 +425,17 @@
   /* ---- Login: slightly richer card on top of existing entrance ---- */
   .login-logo{ box-shadow:0 10px 22px -6px rgba(8,76,60,.5), 0 0 0 6px rgba(232,163,61,.08); }
 
+
+  /* ---- product images ---- */
+  .thumb{ width:40px; height:40px; border-radius:8px; object-fit:cover; background:#EEF2EF; border:1px solid var(--border); flex:none; cursor:zoom-in; }
+  .thumb.ph{ display:inline-flex; align-items:center; justify-content:center; font-size:18px; cursor:default; color:var(--muted); }
+  .pname{ display:flex; align-items:center; gap:10px; }
+  .pick-item .thumb{ width:44px; height:44px; }
+  .pick-item .pick-main{ display:flex; align-items:center; gap:10px; min-width:0; }
+  .img-upload{ display:flex; align-items:center; gap:14px; margin:12px 0 4px; }
+  .img-preview{ width:88px; height:88px; border-radius:10px; border:1px dashed var(--border); background:#F4F7F5; object-fit:cover; display:flex; align-items:center; justify-content:center; font-size:30px; color:var(--muted); flex:none; }
+  .img-upload .img-note{ font-size:12px; color:var(--muted); margin-top:6px; line-height:1.5; }
+  .result-count{ font-size:12.5px; color:var(--muted); margin:2px 0 10px; }
 </style>
 </head>
 <body>
@@ -434,7 +445,7 @@
     <div class="login-topbar"></div>
     <div class="login-body">
       <div class="login-logo">🧾</div>
-      <h1 class="display">দোকান হিসাব</h1>
+      <h1 class="display">SR Tach Lab POS System</h1>
       <div class="tag" id="loginTag">লগইন করে সিস্টেম ব্যবহার করুন</div>
 
       <div class="login-form" id="loginForm">
@@ -465,7 +476,7 @@
 <div id="app-shell" class="hidden">
 <div class="sidebar">
   <div class="brand">
-    <div class="display" id="shopNameLabel">দোকান হিসাব</div>
+    <div class="display" id="shopNameLabel">SR Tach Lab POS</div>
     <small>OPS SYSTEM</small>
   </div>
   <nav id="mainNav">
@@ -537,7 +548,7 @@
           <h3>সকল ইনভয়েজ</h3>
           <button class="btn ghost sm" data-view="invoices">ফিল্টার করে দেখুন</button>
         </div>
-        <input class="search-box" id="dashInvSearch" placeholder="🔍 কাস্টমার বা ইনভয়েজ নং দিয়ে খুঁজুন...">
+        <input class="search-box" id="dashInvSearch" placeholder="🔍 নাম, মোবাইল, ইনভয়েজ নং বা পণ্যের নাম দিয়ে খুঁজুন...">
         <div style="max-height:420px; overflow-y:auto;" id="dashRecent"></div>
       </div>
 
@@ -616,12 +627,21 @@
     <div class="view" id="view-invoices">
       <div class="card">
         <div class="card-head"><h3>সকল ইনভয়েজ</h3></div>
+        <input class="search-box" id="invSearch" placeholder="🔍 নাম, মোবাইল, ইনভয়েজ নং, পণ্যের নাম বা টাকার অঙ্ক দিয়ে খুঁজুন...">
         <div class="form-row" style="--cols:4;">
           <div><label>শুরুর তারিখ</label><input type="date" id="invFrom"></div>
           <div><label>শেষ তারিখ</label><input type="date" id="invTo"></div>
-          <div><label>কাস্টমার / নং সার্চ</label><input id="invSearch" placeholder="নাম বা ইনভয়েজ নং"></div>
+          <div><label>অবস্থা</label>
+            <select id="invStatus">
+              <option value="">সব ইনভয়েজ</option>
+              <option value="due">বাকি আছে</option>
+              <option value="paid">পরিশোধিত</option>
+              <option value="returned">ফেরত হয়েছে</option>
+            </select>
+          </div>
           <div style="align-self:end;"><button class="btn ghost w100" id="btnClearInvFilter">রিসেট</button></div>
         </div>
+        <div class="result-count" id="invCount"></div>
         <div id="invoiceTableWrap"></div>
       </div>
     </div>
@@ -700,6 +720,15 @@
     <div class="modal-head"><h3 id="productModalTitle">নতুন পণ্য যোগ করুন</h3><button class="close-x" data-close="productModal">✕</button></div>
     <input type="hidden" id="prodId">
     <label>পণ্যের নাম</label><input id="prodName" placeholder="যেমন: চাল (মিনিকেট)">
+    <div class="img-upload">
+      <div class="img-preview" id="prodImgPreview">📦</div>
+      <div>
+        <input type="file" id="prodImageFile" accept="image/*" style="display:none">
+        <button type="button" class="btn ghost sm" id="btnPickImage">📷 ছবি বাছুন</button>
+        <button type="button" class="btn ghost sm" id="btnRemoveImage" style="display:none;">🗑️ ছবি মুছুন</button>
+        <div class="img-note" id="prodImgNote">ছবি অটোমেটিক ছোট করে (প্রায় ১০০ KB এর মধ্যে) আপলোড হবে।</div>
+      </div>
+    </div>
     <div class="form-row mt12" style="--cols:2;">
       <div><label>ক্রয় মূল্য (৳)</label><input type="number" id="prodBuy" min="0" step="any"></div>
       <div><label>বিক্রয় মূল্য (৳)</label><input type="number" id="prodSell" min="0" step="any"></div>
@@ -832,11 +861,11 @@ async function fetchAll(make){
 async function loadProducts(){
   const rows = isOwner()
     ? await fetchAll(()=> sb.rpc('products_with_cost').order('name').order('id'))
-    : await fetchAll(()=> sb.from('products').select('id,name,category,unit,sell_price,stock_qty,low_stock_level').order('name').order('id'));
+    : await fetchAll(()=> sb.from('products').select('id,name,category,unit,sell_price,stock_qty,low_stock_level,image_url').order('name').order('id'));
   products = rows.map(r => ({
     id:r.id, name:r.name, category:r.category||'', unit:r.unit||'পিস',
     sellPrice:Number(r.sell_price), buyPrice: r.buy_price!=null ? Number(r.buy_price) : null,
-    stock:Number(r.stock_qty), reorder:Number(r.low_stock_level)
+    stock:Number(r.stock_qty), reorder:Number(r.low_stock_level), imageUrl:r.image_url || ''
   }));
 }
 async function loadInvoices(){
@@ -1070,9 +1099,9 @@ function renderDashboard(){
   ` : `<div class="empty muted" style="padding:20px 0;">সব পণ্যের স্টক পর্যাপ্ত আছে ✅</div>`;
 }
 function renderDashInvoiceList(){
-  const q = ($('dashInvSearch').value||'').trim().toLowerCase();
+  const q = ($('dashInvSearch').value||'').trim();
   let list = invoices;
-  if(q) list = list.filter(i => i.customerName.toLowerCase().includes(q) || i.invoiceNo.toLowerCase().includes(q));
+  if(q) list = list.filter(i => invoiceMatches(i, q));
   list = list.slice(0, 100);
   $('dashRecent').innerHTML = list.length ? `
     <table><thead><tr><th>ইনভয়েজ নং</th><th>কাস্টমার</th><th>তারিখ</th><th class="num">মোট</th><th>অবস্থা</th><th class="num">কার্যক্রম</th></tr></thead>
@@ -1109,6 +1138,110 @@ $('dashPeriodType').addEventListener('change', ()=>{
 
 /* ============ PRODUCTS ============ */
 let showBuyPrice = true;
+/* ============ PRODUCT IMAGES ============ */
+const IMG_BUCKET = 'product-images';
+const IMG_MAX_BYTES = 100 * 1024;   // লক্ষ্য: ছবি এর চেয়ে ছোট হবে
+let prodImg = { blob:null, previewUrl:'', existingUrl:'', removed:false };
+
+function thumbHtml(p, inPos){
+  if(!p.imageUrl) return `<span class="thumb ph">📦</span>`;
+  const click = inPos ? '' : ` onclick="showProductImage('${p.id}')"`;
+  return `<img class="thumb" loading="lazy" src="${esc(p.imageUrl)}" alt=""${click}>`;
+}
+function showProductImage(id){
+  const p = products.find(x => x.id === id); if(!p || !p.imageUrl) return;
+  openDyn(`<div class="modal-head"><h3>${esc(p.name)}</h3><button class="close-x" onclick="closeDyn()">✕</button></div>
+    <img src="${esc(p.imageUrl)}" alt="" style="width:100%;max-height:70vh;object-fit:contain;border-radius:10px;">`);
+}
+function fmtBytes(n){ return n >= 1048576 ? (n/1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n/1024)) + ' KB'; }
+
+async function loadImageSource(file){
+  if(window.createImageBitmap){
+    try{ return await createImageBitmap(file, { imageOrientation:'from-image' }); }catch(e){ /* fallback below */ }
+  }
+  return await new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file); const img = new Image();
+    img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('ছবিটি পড়া যায়নি')); };
+    img.src = url;
+  });
+}
+function canvasToBlob(canvas, type, q){ return new Promise(res => canvas.toBlob(res, type, q)); }
+
+// ছবি ছোট করে (সর্বোচ্চ ৮০০px) এবং কোয়ালিটি কমিয়ে ~১০০ KB এর নিচে নামায়
+async function compressImage(file){
+  const src = await loadImageSource(file);
+  const sw = src.width, sh = src.height;
+  let best = null;
+  for(const maxDim of [800, 640, 480, 360]){
+    const scale = Math.min(1, maxDim / Math.max(sw, sh));
+    const w = Math.max(1, Math.round(sw * scale)), h = Math.max(1, Math.round(sh * scale));
+    const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);      // PNG এর স্বচ্ছ অংশ সাদা হবে
+    ctx.drawImage(src, 0, 0, w, h);
+    for(const q of [0.82, 0.72, 0.62, 0.52, 0.42]){
+      let blob = await canvasToBlob(canvas, 'image/webp', q);
+      if(!blob || blob.type !== 'image/webp') blob = await canvasToBlob(canvas, 'image/jpeg', q);   // পুরনো ব্রাউজারের জন্য
+      if(!blob) continue;
+      best = blob;
+      if(blob.size <= IMG_MAX_BYTES) return blob;
+    }
+  }
+  if(src.close) src.close();
+  if(!best) throw new Error('ছবি প্রসেস করা যায়নি');
+  return best;
+}
+function setProdImagePreview(url){
+  const box = $('prodImgPreview');
+  if(url){ box.innerHTML = `<img src="${esc(url)}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:10px;">`; }
+  else { box.textContent = '📦'; }
+  $('btnRemoveImage').style.display = url ? '' : 'none';
+}
+function resetProdImageState(existingUrl){
+  if(prodImg.previewUrl) URL.revokeObjectURL(prodImg.previewUrl);
+  prodImg = { blob:null, previewUrl:'', existingUrl: existingUrl || '', removed:false };
+  $('prodImageFile').value = '';
+  setProdImagePreview(prodImg.existingUrl);
+  $('prodImgNote').textContent = 'ছবি অটোমেটিক ছোট করে (প্রায় ১০০ KB এর মধ্যে) আপলোড হবে।';
+}
+$('btnPickImage').addEventListener('click', ()=> $('prodImageFile').click());
+$('btnRemoveImage').addEventListener('click', ()=>{
+  if(prodImg.previewUrl) URL.revokeObjectURL(prodImg.previewUrl);
+  prodImg.blob = null; prodImg.previewUrl = ''; prodImg.removed = !!prodImg.existingUrl; $('prodImageFile').value = '';
+  setProdImagePreview('');
+  $('prodImgNote').textContent = 'ছবি মুছে ফেলা হবে (সংরক্ষণ করলে কার্যকর হবে)।';
+});
+$('prodImageFile').addEventListener('change', async e => {
+  const file = e.target.files && e.target.files[0]; if(!file) return;
+  if(!file.type.startsWith('image/')){ showToast('⚠️ শুধু ছবি (JPG/PNG/WebP) বাছুন'); e.target.value = ''; return; }
+  $('prodImgNote').textContent = '⏳ ছবি ছোট করা হচ্ছে...';
+  try{
+    const blob = await compressImage(file);
+    if(prodImg.previewUrl) URL.revokeObjectURL(prodImg.previewUrl);
+    prodImg.blob = blob; prodImg.previewUrl = URL.createObjectURL(blob); prodImg.removed = false;
+    setProdImagePreview(prodImg.previewUrl);
+    $('prodImgNote').textContent = `✅ ${fmtBytes(file.size)} → ${fmtBytes(blob.size)} (ছোট করা হয়েছে)। সংরক্ষণ করলে আপলোড হবে।`;
+  }catch(err){
+    $('prodImgNote').textContent = '⚠️ ' + errMsg(err);
+  }
+});
+async function uploadProductImage(blob){
+  const ext = blob.type === 'image/webp' ? 'webp' : 'jpg';
+  const rnd = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now() + '-' + Math.random().toString(36).slice(2));
+  const path = `${PROFILE.shop_id}/${rnd}.${ext}`;
+  const { error } = await sb.storage.from(IMG_BUCKET).upload(path, blob, { contentType: blob.type, cacheControl: '31536000' });
+  if(error) throw error;
+  return sb.storage.from(IMG_BUCKET).getPublicUrl(path).data.publicUrl;
+}
+async function removeProductImage(url){
+  if(!url) return;
+  const marker = '/' + IMG_BUCKET + '/';
+  const i = url.indexOf(marker); if(i < 0) return;
+  const path = decodeURIComponent(url.slice(i + marker.length).split('?')[0]);
+  try{ await sb.storage.from(IMG_BUCKET).remove([path]); }catch(e){ /* গুরুত্বপূর্ণ নয় */ }
+}
+
 function renderProducts(){
   const q = ($('productSearch').value||'').trim().toLowerCase();
   const list = products.filter(p => p.name.toLowerCase().includes(q) || (p.category||'').toLowerCase().includes(q));
@@ -1124,7 +1257,7 @@ function renderProducts(){
       const profit = p.sellPrice - (p.buyPrice||0);
       const buyCells = owner && showBuyPrice ? `<td class="num">${money(p.buyPrice)}</td><td class="num" style="color:${profit>=0?'var(--success)':'var(--danger)'}">${money(profit)}</td>` : '';
       return `<tr>
-        <td>${esc(p.name)}</td><td>${esc(p.category)||'-'}</td>${buyCells}
+        <td><div class="pname">${thumbHtml(p)}<span>${esc(p.name)}</span></div></td><td>${esc(p.category)||'-'}</td>${buyCells}
         <td class="num">${money(p.sellPrice)}</td>
         <td class="num">${p.stock} ${esc(p.unit)} ${low ? '<span class="badge low">কম</span>' : ''}</td>
         ${owner ? `<td class="num"><button class="btn ghost sm" onclick="editProduct('${p.id}')">✏️</button> <button class="btn danger sm" onclick="deleteProduct('${p.id}')">🗑️</button></td>` : ''}
@@ -1139,6 +1272,7 @@ $('btnAddProduct').addEventListener('click', ()=>{
   $('productModalTitle').textContent = 'নতুন পণ্য যোগ করুন';
   ['prodId','prodName','prodBuy','prodSell','prodStock','prodCategory'].forEach(id => $(id).value = '');
   $('prodUnit').value = 'পিস'; $('prodReorder').value = '5';
+  resetProdImageState('');
   openModal('productModal');
 });
 function editProduct(id){
@@ -1146,12 +1280,15 @@ function editProduct(id){
   $('productModalTitle').textContent = 'পণ্য সম্পাদনা করুন';
   $('prodId').value = p.id; $('prodName').value = p.name; $('prodBuy').value = p.buyPrice ?? 0; $('prodSell').value = p.sellPrice;
   $('prodStock').value = p.stock; $('prodUnit').value = p.unit || 'পিস'; $('prodCategory').value = p.category || ''; $('prodReorder').value = p.reorder;
+  resetProdImageState(p.imageUrl);
   openModal('productModal');
 }
 async function deleteProduct(id){
   if(!confirm('আপনি কি নিশ্চিতভাবে এই পণ্যটি মুছে ফেলতে চান? (আগের ইনভয়েজ অক্ষত থাকবে)')) return;
+  const old = products.find(x => x.id === id);
   const { error } = await sb.from('products').delete().eq('id', id);
   if(error){ showToast('⚠️ ' + errMsg(error)); return; }
+  if(old && old.imageUrl) removeProductImage(old.imageUrl);
   await refreshData(true); renderProducts(); showToast('পণ্য মুছে ফেলা হয়েছে');
 }
 $('btnSaveProduct').addEventListener('click', async ()=>{
@@ -1166,9 +1303,15 @@ $('btnSaveProduct').addEventListener('click', async ()=>{
   };
   const id = $('prodId').value;
   $('btnSaveProduct').disabled = true;
+  let newUrl = null;
+  if(prodImg.blob){
+    try{ newUrl = await uploadProductImage(prodImg.blob); row.image_url = newUrl; }
+    catch(err){ $('btnSaveProduct').disabled = false; showToast('⚠️ ছবি আপলোড হয়নি: ' + errMsg(err)); return; }
+  } else if(prodImg.removed){ row.image_url = null; }
   const { error } = id ? await sb.from('products').update(row).eq('id', id) : await sb.from('products').insert({ ...row, shop_id: PROFILE.shop_id });
   $('btnSaveProduct').disabled = false;
-  if(error){ showToast('⚠️ ' + errMsg(error)); return; }
+  if(error){ if(newUrl) removeProductImage(newUrl); showToast('⚠️ ' + errMsg(error)); return; }
+  if((newUrl || prodImg.removed) && prodImg.existingUrl) removeProductImage(prodImg.existingUrl);   // পুরনো ছবি মুছে জায়গা বাঁচান
   closeModal('productModal');
   await refreshData(true); renderProducts();
   showToast('✅ সংরক্ষণ সম্পন্ন হয়েছে');
@@ -1181,7 +1324,7 @@ function renderPOSProductList(){
   const list = products.filter(p => p.name.toLowerCase().includes(q));
   $('posProductList').innerHTML = list.length ? list.map(p => `
     <div class="pick-item" onclick="addToCart('${p.id}')">
-      <div><div class="name">${esc(p.name)}</div><div class="meta">স্টক: ${p.stock} ${esc(p.unit)}</div></div>
+      <div class="pick-main">${thumbHtml(p, true)}<div><div class="name">${esc(p.name)}</div><div class="meta">স্টক: ${p.stock} ${esc(p.unit)}</div></div></div>
       <div class="price">${money(p.sellPrice)}</div>
     </div>`).join('') : `<div class="empty muted">কোনো পণ্য পাওয়া যায়নি</div>`;
 }
@@ -1274,13 +1417,32 @@ $('btnGenerateInvoice').addEventListener('click', async ()=>{
 });
 
 /* ============ INVOICE LIST ============ */
+function normSearch(str){
+  return String(str == null ? '' : str).toLowerCase().replace(/[\u09E6-\u09EF]/g, d => String(d.charCodeAt(0) - 0x09E6));
+}
+function invoiceMatches(inv, q){
+  const tokens = normSearch(q).trim().split(/\s+/).filter(Boolean);
+  if(!tokens.length) return true;
+  if(!inv._hay){
+    inv._hay = normSearch([
+      inv.invoiceNo, inv.customerName, inv.customerPhone, inv.customerAddress, inv.paymentMethod, inv.date,
+      inv.total, inv.paid, inv.due, (inv.items||[]).map(it => it.name).join(' ')
+    ].join(' | '));
+  }
+  return tokens.every(t => inv._hay.includes(t));
+}
 function renderInvoices(){
   const from = $('invFrom').value, to = $('invTo').value;
-  const q = ($('invSearch').value||'').trim().toLowerCase();
+  const q = ($('invSearch').value||'').trim();
+  const st = $('invStatus').value;
   let list = invoices;
   if(from) list = list.filter(i => i.date >= from);
   if(to) list = list.filter(i => i.date <= to);
-  if(q) list = list.filter(i => i.customerName.toLowerCase().includes(q) || i.invoiceNo.toLowerCase().includes(q));
+  if(q) list = list.filter(i => invoiceMatches(i, q));
+  if(st === 'due') list = list.filter(i => i.due > 0);
+  if(st === 'paid') list = list.filter(i => i.due <= 0);
+  if(st === 'returned') list = list.filter(i => (i.returnedTotal||0) > 0);
+  $('invCount').textContent = (q || from || to || st) ? `${list.length}টি ইনভয়েজ পাওয়া গেছে (মোট ${invoices.length}টির মধ্যে)` : `মোট ${invoices.length}টি ইনভয়েজ`;
   $('invoiceTableWrap').innerHTML = list.length ? `
     <table><thead><tr>
       <th>ইনভয়েজ নং</th><th>তারিখ</th><th>কাস্টমার</th><th class="num">মোট</th><th class="num">পরিশোধিত</th><th class="num">বাকি</th><th>অবস্থা</th><th class="num">দেখুন</th>
@@ -1294,8 +1456,8 @@ function renderInvoices(){
     </tbody></table>
   ` : `<div class="empty"><div class="big">🧾</div>কোনো ইনভয়েজ পাওয়া যায়নি</div>`;
 }
-['invFrom','invTo','invSearch'].forEach(id => $(id).addEventListener('input', renderInvoices));
-$('btnClearInvFilter').addEventListener('click', ()=>{ $('invFrom').value=''; $('invTo').value=''; $('invSearch').value=''; renderInvoices(); });
+['invFrom','invTo','invSearch','invStatus'].forEach(id => $(id).addEventListener('input', renderInvoices));
+$('btnClearInvFilter').addEventListener('click', ()=>{ $('invFrom').value=''; $('invTo').value=''; $('invSearch').value=''; $('invStatus').value=''; renderInvoices(); });
 
 /* ============ INVOICE VIEW / PRINT ============ */
 function invoiceHTML(i){
@@ -1303,7 +1465,7 @@ function invoiceHTML(i){
   return `
   <div class="inv-doc">
     <div class="inv-head">
-      <div class="shop-name">${esc(shop.name) || 'দোকান হিসাব'}</div>
+      <div class="shop-name">${esc(shop.name) || 'SR Tach Lab POS'}</div>
       <div class="shop-meta">${esc(shop.address)||''}${shop.address && shop.phone ? ' &nbsp;|&nbsp; ' : ''}${shop.phone ? '📞 ' + esc(shop.phone) : ''}</div>
     </div>
     <div class="inv-title-bar">
@@ -1607,13 +1769,45 @@ async function renderAdmin(){
       <td>${esc([s.address, s.phone].filter(Boolean).join(' · ')) || '-'}</td>
       <td><span class="badge ${s.is_active?'paid':'off'}">${s.is_active?'সক্রিয়':'নিষ্ক্রিয়'}</span></td>
       <td class="num"><button class="btn ghost sm" onclick="openShopUsers('${s.id}')">👥 ইউজার</button>
-        <button class="btn ghost sm" onclick="toggleShop('${s.id}', ${!s.is_active})">${s.is_active?'নিষ্ক্রিয়':'সক্রিয়'}</button></td></tr>`).join('')}</tbody></table>
+        <button class="btn ghost sm" onclick="toggleShop('${s.id}', ${!s.is_active})">${s.is_active?'নিষ্ক্রিয়':'সক্রিয়'}</button>
+        <button class="btn danger sm" onclick="openResetShop('${s.id}')">🧹 ডাটা রিসেট</button></td></tr>`).join('')}</tbody></table>
   ` : `<div class="empty"><div class="big">🏬</div>এখনো কোনো দোকান নেই</div>`;
 }
 async function toggleShop(id, val){
   const { error } = await sb.from('shops').update({ is_active: val }).eq('id', id);
   if(error){ showToast('⚠️ ' + errMsg(error)); return; }
   renderAdmin();
+}
+/* ---- দোকানের ডাটা রিসেট (শুধু সুপার অ্যাডমিন) ---- */
+function openResetShop(shopId){
+  const s = shopsCache.find(x => x.id === shopId); if(!s) return;
+  openDyn(`
+    <div class="modal-head"><h3>⚠️ ডাটা রিসেট: ${esc(s.name)}</h3><button class="close-x" onclick="closeDyn()">✕</button></div>
+    <div style="background:#FCF6F5;border:1px solid #F0CFCB;border-radius:8px;padding:12px;font-size:13.5px;line-height:1.8;">
+      <strong>মুছে যাবে:</strong> সব ইনভয়েজ, ফেরত, বকেয়া পেমেন্ট ও কাস্টমারের রেকর্ড এবং ড্যাশবোর্ডের সব হিসাব। ইনভয়েজ নং আবার ১ থেকে শুরু হবে।<br>
+      <strong>থাকবে:</strong> দোকানের তথ্য, ইউজার/লগইন ও সেটিংস।<br>
+      <strong style="color:var(--danger);">এই কাজ ফেরত আনা যাবে না।</strong>
+    </div>
+    <label class="vis-toggle" style="margin-top:14px;display:flex;gap:8px;align-items:center;"><input type="checkbox" id="rs-products"> পণ্যের তালিকা ও পণ্যের ছবিও মুছে ফেলুন</label>
+    <div class="mt12"></div>
+    <label>নিশ্চিত করতে দোকানের নাম হুবহু লিখুন: <strong>${esc(s.name)}</strong></label>
+    <input id="rs-confirm" autocomplete="off">
+    <div class="login-error" id="rs-err" style="margin-top:12px;"></div>
+    <button class="btn danger w100 mt16" style="justify-content:center;" onclick="submitResetShop('${s.id}', this)">🧹 চিরতরে মুছে ফেলুন</button>`);
+}
+async function submitResetShop(shopId, btn){
+  const s = shopsCache.find(x => x.id === shopId); if(!s) return;
+  const err = $('rs-err'); err.style.display = 'none';
+  if($('rs-confirm').value.trim() !== (s.name||'').trim()){ err.textContent = 'দোকানের নাম মেলেনি। সঠিকভাবে লিখুন।'; err.style.display = 'block'; return; }
+  btn.disabled = true;
+  const { data, error } = await sb.rpc('admin_reset_shop_data', { p_shop_id: shopId, p_include_products: $('rs-products').checked });
+  if(error){ err.textContent = errMsg(error); err.style.display = 'block'; btn.disabled = false; return; }
+  // পণ্য মুছলে তাদের ছবিও স্টোরেজ থেকে মুছে জায়গা খালি করি
+  const marker = '/' + IMG_BUCKET + '/';
+  const paths = ((data && data.image_urls) || []).map(u => { const i = u.indexOf(marker); return i < 0 ? null : decodeURIComponent(u.slice(i + marker.length).split('?')[0]); }).filter(Boolean);
+  if(paths.length){ try{ await sb.storage.from(IMG_BUCKET).remove(paths); }catch(e){} }
+  closeDyn();
+  showToast(`✅ রিসেট সম্পন্ন: ${data.invoices}টি ইনভয়েজ মোছা হয়েছে` + (data.products ? `, ${data.products}টি পণ্য মোছা হয়েছে` : ''));
 }
 $('btnAddShop').addEventListener('click', ()=>{
   openDyn(`
