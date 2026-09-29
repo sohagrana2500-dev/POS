@@ -1,717 +1,1685 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="bn">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Dokan POS</title>
-<script src="https://cdn.tailwindcss.com"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>দোকান হিসাব — Ops System</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Tiro+Bangla:ital@0;1&family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
-  body{font-family:'Hind Siliguri','Inter',sans-serif}
-  .num{font-variant-numeric:tabular-nums}
-  ::-webkit-scrollbar{width:8px;height:8px}
-  @media print{ .no-print{display:none!important} body{background:#fff} }
+
+  :root{
+    --bg:#F4F7F5;
+    --surface:#FFFFFF;
+    --ink:#16261F;
+    --muted:#6B7A75;
+    --primary:#0B4F4A;
+    --primary-light:#146B63;
+    --primary-dark:#083B37;
+    --accent:#E8A33D;
+    --accent-dark:#C9861F;
+    --success:#1E8A5F;
+    --success-bg:#E7F5EE;
+    --danger:#C0392B;
+    --danger-bg:#FBEAE8;
+    --border:#E1E6E2;
+    --radius:10px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{
+    font-family:'Hind Siliguri', sans-serif;
+    background:var(--bg);
+    color:var(--ink);
+    display:flex;
+    min-height:100vh;
+    position:relative;
+  }
+  .sidebar, .main{ position:relative; z-index:1; }
+  .content{ background:transparent; }
+  h1,h2,h3,.display{ font-family:'Tiro Bangla', serif; }
+
+  /* ---------- Sidebar ---------- */
+  .sidebar{
+    width:230px;
+    flex-shrink:0;
+    background:linear-gradient(180deg,var(--primary-dark),var(--primary));
+    color:#fff;
+    display:flex;
+    flex-direction:column;
+    position:sticky;
+    top:0;
+    height:100vh;
+  }
+  .brand{
+    padding:22px 20px 16px;
+    border-bottom:1px solid rgba(255,255,255,.12);
+  }
+  .brand .display{ font-size:20px; line-height:1.3; }
+  .brand small{ display:block; color:var(--accent); font-size:12px; margin-top:3px; letter-spacing:.3px;}
+  nav{ padding:14px 10px; flex:1; }
+  .nav-item{
+    display:flex; align-items:center; gap:10px;
+    padding:11px 14px; border-radius:8px; cursor:pointer;
+    color:rgba(255,255,255,.82); font-size:15px; margin-bottom:4px;
+    border-left:3px solid transparent;
+    transition:.15s;
+    user-select:none;
+  }
+  .nav-item:hover{ background:rgba(255,255,255,.08); color:#fff; }
+  .nav-item.active{
+    background:rgba(255,255,255,.1);
+    border-left:3px solid var(--accent);
+    color:#fff; font-weight:600;
+  }
+  .nav-icon{ font-size:17px; width:20px; text-align:center; }
+  .sidebar-footer{ padding:14px 18px; font-size:11px; color:rgba(255,255,255,.5); border-top:1px solid rgba(255,255,255,.1); }
+
+  /* ---------- Main ---------- */
+  .main{ flex:1; min-width:0; display:flex; flex-direction:column; }
+  .topbar{
+    background:var(--surface); border-bottom:1px solid var(--border);
+    padding:16px 28px; display:flex; align-items:center; justify-content:space-between;
+    position:sticky; top:0; z-index:5;
+  }
+  .topbar h2{ font-size:20px; }
+  .topbar .sub{ color:var(--muted); font-size:13px; margin-top:2px;}
+  .content{ padding:24px 28px 60px; }
+  .view{ display:none; }
+  .view.active{ display:block; }
+
+  /* ---------- Cards / grid ---------- */
+  .stat-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:22px; }
+  .stat-card{
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    padding:18px 20px; position:relative; overflow:hidden;
+  }
+  .stat-card::before{ content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--primary); }
+  .stat-card.accent::before{ background:var(--accent); }
+  .stat-card.danger::before{ background:var(--danger); }
+  .stat-card.success::before{ background:var(--success); }
+  .stat-card .label{ font-size:12.5px; color:var(--muted); margin-bottom:6px;}
+  .stat-card .value{ font-size:24px; font-weight:700; font-family:'Tiro Bangla',serif;}
+
+  .card{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:20px; margin-bottom:18px;}
+  .card-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; gap:10px; flex-wrap:wrap; }
+  .card-head h3{ font-size:16.5px; }
+  .card-visibility-panel{ background:#EFF4F1; border:1px dashed var(--primary); }
+  .vis-panel-list{ display:flex; flex-wrap:wrap; gap:10px 22px; }
+  .vis-toggle{ display:flex; align-items:center; gap:7px; font-size:13.5px; color:var(--ink); cursor:pointer; user-select:none; white-space:nowrap; }
+  .vis-toggle input{ width:16px; height:16px; accent-color:var(--primary); cursor:pointer; }
+  .card.dash-hidden{ display:none; }
+  .prev-due-notice{ background:var(--danger-bg); border:1px dashed var(--danger); color:var(--danger); border-radius:8px; padding:9px 12px; font-size:12.5px; margin-top:10px; line-height:1.6; }
+
+  /* ---------- Buttons ---------- */
+  .btn{
+    display:inline-flex; align-items:center; gap:6px;
+    background:var(--primary); color:#fff; border:none; border-radius:8px;
+    padding:9px 16px; font-size:14px; font-weight:600; cursor:pointer; font-family:inherit;
+    transition:.15s;
+  }
+  .btn:hover{ background:var(--primary-light); }
+  .btn.accent{ background:var(--accent); color:#2b1c02; }
+  .btn.accent:hover{ background:var(--accent-dark); color:#fff; }
+  .btn.ghost{ background:transparent; color:var(--primary); border:1px solid var(--border); }
+  .btn.ghost:hover{ background:#f0f4f2; }
+  .btn.danger{ background:var(--danger); }
+  .btn.danger:hover{ background:#a53125; }
+  .btn.sm{ padding:6px 11px; font-size:12.5px; border-radius:6px;}
+  .btn:disabled{ opacity:.5; cursor:not-allowed; }
+
+  /* ---------- Forms ---------- */
+  label{ font-size:12.5px; color:var(--muted); display:block; margin-bottom:5px; font-weight:600;}
+  input,select,textarea{
+    width:100%; padding:9px 11px; border:1px solid var(--border); border-radius:7px;
+    font-family:inherit; font-size:14px; background:#fff; color:var(--ink);
+  }
+  input:focus, select:focus, textarea:focus{ outline:2px solid var(--primary-light); outline-offset:0; border-color:var(--primary-light); }
+  .form-row{ display:grid; grid-template-columns:repeat(var(--cols,2),1fr); gap:12px; margin-bottom:12px; }
+
+  /* ---------- Table ---------- */
+  table{ width:100%; border-collapse:collapse; font-size:14px; }
+  thead th{
+    text-align:right; font-size:12px; color:var(--muted); font-weight:700; text-transform:none;
+    padding:8px 10px; border-bottom:2px solid var(--border); background:#FAFCFB;
+  }
+  thead th:first-child, tbody td:first-child{ text-align:right; }
+  tbody td{ padding:10px 10px; border-bottom:1px solid var(--border); }
+  tbody tr:nth-child(even){ background:#FAFBFA; }
+  tbody tr:hover{ background:#F0F6F3; }
+  .num{ text-align:left; font-variant-numeric:tabular-nums; direction:ltr; }
+  th.num{ text-align:left; }
+
+  .badge{ display:inline-block; padding:3px 10px; border-radius:20px; font-size:12px; font-weight:600; }
+  .badge.paid{ background:var(--success-bg); color:var(--success); }
+  .badge.due{ background:var(--danger-bg); color:var(--danger); }
+  .badge.partial{ background:#FFF3DE; color:var(--accent-dark); }
+  .badge.low{ background:var(--danger-bg); color:var(--danger); }
+
+  .empty{ text-align:center; padding:50px 20px; color:var(--muted); }
+  .empty .big{ font-size:38px; margin-bottom:10px; }
+
+  /* ---------- Due sheet ---------- */
+  .due-table tbody tr.due-row{ cursor:pointer; }
+  .due-table tbody tr.due-row td{ font-size:14.5px; }
+  .due-amt{ font-family:'Tiro Bangla',serif; font-weight:700; font-size:16px; color:var(--danger); }
+  .due-detail-row td{ background:#FCF6F5; padding:0; border-bottom:1px solid var(--border); }
+  .due-detail-inner{ padding:12px 16px 16px; }
+  .chevron{ display:inline-block; transition:.15s; color:var(--muted); font-size:12px; margin-left:6px; }
+  .chevron.open{ transform:rotate(90deg); }
+
+  /* ---------- POS ---------- */
+  .pos-grid{ display:grid; grid-template-columns:1.4fr 1fr; gap:18px; align-items:start; }
+  .product-pick{ max-height:520px; overflow-y:auto; }
+  .pick-item{
+    display:flex; justify-content:space-between; align-items:center; padding:10px 12px;
+    border:1px solid var(--border); border-radius:8px; margin-bottom:8px; cursor:pointer; transition:.15s;
+  }
+  .pick-item:hover{ border-color:var(--primary-light); background:#F5FAF8; }
+  .pick-item .name{ font-weight:600; font-size:14.5px; }
+  .pick-item .meta{ font-size:12px; color:var(--muted); margin-top:2px;}
+  .pick-item .price{ font-weight:700; color:var(--primary); font-variant-numeric:tabular-nums; }
+  .search-box{ margin-bottom:12px; }
+
+  .cart-row{ display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px dashed var(--border); }
+  .cart-row .cname{ flex:1; font-size:13.5px; }
+  .cart-row input[type=number]{ width:56px; padding:5px; text-align:center; }
+  .cart-total-line{ display:flex; justify-content:space-between; padding:6px 0; font-size:14px; }
+  .cart-total-line.grand{ font-size:18px; font-weight:700; font-family:'Tiro Bangla',serif; border-top:2px solid var(--border); padding-top:10px; margin-top:6px;}
+
+  /* ---------- Modal ---------- */
+  .modal-overlay{
+    display:none; position:fixed; inset:0; background:rgba(10,20,17,.5); z-index:50;
+    align-items:flex-start; justify-content:center; padding:40px 16px; overflow-y:auto;
+  }
+  .modal-overlay.active{ display:flex; }
+  .modal{
+    background:#fff; border-radius:12px; width:100%; max-width:560px; padding:24px;
+    box-shadow:0 20px 50px rgba(0,0,0,.25);
+  }
+  .modal.wide{ max-width:780px; }
+  .modal-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+  .modal-head h3{ font-size:18px; }
+  .close-x{ cursor:pointer; font-size:20px; color:var(--muted); background:none; border:none; }
+
+  /* ---------- Print invoice preview (এসআর বুক / হাফ-লেটার সাইজ: 5.5in x 8.5in) ---------- */
+  #print-area{ display:none; }
+  .inv-doc{ font-family:'Hind Siliguri',sans-serif; color:#111; padding:4px 3px; width:5.3in; max-width:100%; margin:0 auto; font-size:11.5px; }
+  .inv-head{ text-align:center; border-bottom:2px double var(--primary); padding-bottom:7px; margin-bottom:7px;}
+  .inv-head .shop-name{ font-family:'Tiro Bangla',serif; font-size:16px; color:var(--primary); font-weight:700; }
+  .inv-head .shop-meta{ font-size:9.5px; color:#555; margin-top:3px; line-height:1.5;}
+  .inv-title-bar{ display:flex; justify-content:space-between; align-items:center; background:var(--primary); color:#fff; border-radius:4px; padding:5px 9px; margin-bottom:8px; font-size:10px;}
+  .inv-title-bar .tag{ font-family:'Tiro Bangla',serif; font-size:11.5px; letter-spacing:.3px; }
+  .inv-title-bar .meta-right{ text-align:left; }
+  .inv-title-bar .meta-right .lbl{ font-size:8.5px; color:rgba(255,255,255,.75); }
+  .inv-title-bar .meta-right .val{ font-size:10.5px; font-weight:700; }
+  .inv-parties{ display:flex; justify-content:space-between; gap:8px; margin-bottom:9px; font-size:10px; }
+  .inv-parties .box{ background:#F4F7F5; padding:6px 9px; border-radius:6px; border-left:3px solid var(--primary); flex:1; }
+  .inv-parties .box.status-box{ flex:0 0 auto; min-width:110px; display:flex; flex-direction:column; justify-content:center; align-items:flex-start; border-left-color:var(--accent);}
+  .inv-parties .box .t{ font-size:8.5px; color:#777; margin-bottom:3px; font-weight:700; letter-spacing:.2px;}
+  .inv-parties .box .cust-name{ font-size:11px; font-weight:700; margin-bottom:2px; }
+  .inv-parties .box .cust-line{ color:#444; line-height:1.5; }
+  table.inv-table{ width:100%; border-collapse:collapse; margin-bottom:8px;}
+  table.inv-table th{ background:var(--primary); color:#fff; padding:5px 6px; font-size:9.5px; text-align:right;}
+  table.inv-table th:first-child{ text-align:right; border-radius:4px 0 0 0;}
+  table.inv-table th:last-child{ border-radius:0 4px 0 0;}
+  table.inv-table th.num{ text-align:left; }
+  table.inv-table td{ padding:4px 6px; border-bottom:1px solid #e5e5e5; font-size:10px; }
+  table.inv-table tbody tr:nth-child(even){ background:#FAFBFA; }
+  .inv-summary{ margin-right:auto; margin-left:0; width:56%; float:left; background:#F4F7F5; border-radius:6px; padding:7px 10px; }
+  .inv-summary .row{ display:flex; justify-content:space-between; padding:3px 0; font-size:10px;}
+  .inv-summary .row.grand{ font-weight:700; font-size:12px; color:var(--primary); border-top:2px solid var(--ink); margin-top:3px; padding-top:5px;}
+  .inv-summary .row.due{ color:var(--danger); font-weight:700; }
+  .inv-note{ clear:both; padding-top:12px; }
+  .inv-note .note-box{ background:var(--success-bg); border:1px dashed var(--success); border-radius:6px; padding:6px 9px; font-size:9.5px; color:#2b4a3c; margin-bottom:9px; }
+  .inv-note .note-box .t{ font-weight:700; margin-bottom:2px; }
+  .inv-foot{ padding-top:6px; display:flex; justify-content:space-between; align-items:flex-end; font-size:9.5px; color:#666; border-top:1px solid #e5e5e5; }
+  .inv-foot .thanks{ font-family:'Tiro Bangla',serif; font-size:10.5px; color:var(--primary); }
+  .inv-foot .sign{ text-align:center; }
+  .inv-foot .sign .line{ width:110px; border-top:1px solid #999; margin-top:20px; padding-top:3px; font-size:9px; }
+
+  @page{ size:5.5in 8.5in; margin:0.15in; }
+  @media print{
+    body *{ visibility:hidden; }
+    #print-area, #print-area *{ visibility:visible; }
+    #print-area{ display:block !important; position:absolute; top:0; left:0; width:100%; padding:0; }
+    .inv-doc{ width:100%; }
+  }
+
+  .flex{ display:flex; align-items:center; }
+  .gap8{ gap:8px; } .gap12{ gap:12px; }
+  .mt8{ margin-top:8px;} .mt12{ margin-top:12px;} .mt16{ margin-top:16px;}
+  .muted{ color:var(--muted); font-size:12.5px;}
+  .right{ text-align:left; }
+  .w100{ width:100%; }
+  .divider{ height:1px; background:var(--border); margin:14px 0; }
+  .pill-tabs{ display:flex; gap:6px; margin-bottom:16px; }
+  .pill-tabs button{
+    background:#fff; border:1px solid var(--border); padding:7px 14px; border-radius:20px;
+    cursor:pointer; font-family:inherit; font-size:13.5px; color:var(--muted);
+  }
+  .pill-tabs button.active{ background:var(--primary); color:#fff; border-color:var(--primary); }
+  .bar-wrap{ background:#EEF3F0; border-radius:5px; height:8px; overflow:hidden; margin-top:5px;}
+  .bar-fill{ height:100%; background:var(--accent); }
+  .toast{
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+    background:var(--ink); color:#fff; padding:11px 20px; border-radius:8px; font-size:14px;
+    z-index:100; display:none; box-shadow:0 8px 20px rgba(0,0,0,.25);
+  }
+  ::-webkit-scrollbar{ width:9px; } ::-webkit-scrollbar-thumb{ background:#c9d3ce; border-radius:6px;}
+
+  
+  /* ---------- Login ---------- */
+  #login-overlay{ position:fixed; inset:0; z-index:200; display:flex; align-items:center; justify-content:center;
+    background:linear-gradient(160deg,var(--primary-dark),var(--primary) 70%,var(--primary-light)); padding:20px; overflow-y:auto; }
+  #login-overlay.hidden{ display:none; }
+  .login-card{ background:#FFFDF8; border-radius:20px; width:100%; max-width:390px; overflow:hidden; border:1px solid #EFE6D3;
+    box-shadow:0 30px 70px -25px rgba(4,30,23,.5); }
+  .login-topbar{ height:5px; background:linear-gradient(90deg,var(--primary),var(--accent),var(--primary)); }
+  .login-body{ padding:32px 30px 24px; text-align:center; }
+  .login-logo{ width:58px; height:58px; border-radius:16px; margin:0 auto 14px; display:flex; align-items:center; justify-content:center;
+    background:linear-gradient(135deg,var(--primary),var(--primary-dark)); color:#fff; font-size:24px; }
+  .login-body h1{ font-size:21px; }
+  .login-body .tag{ color:var(--muted); font-size:12.5px; margin-top:4px; }
+  .login-form{ text-align:right; margin-top:22px; }
+  .login-error{ display:none; background:var(--danger-bg); color:var(--danger); font-size:12.5px; font-weight:700;
+    border-radius:8px; padding:9px 12px; margin-bottom:12px; text-align:center; }
+  .login-status{ display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700; color:var(--primary);
+    background:var(--success-bg); border:1px solid #cfe9db; border-radius:20px; padding:4px 11px; }
+  .login-foot{ padding:12px 30px; border-top:1px solid var(--border); text-align:center; font-size:11px; color:var(--muted); }
+  #app-shell{ display:flex; width:100%; }
+  #app-shell.hidden{ display:none; }
+  .badge.off{ background:#ECEFED; color:#6B7A75; }
+  .table-scroll{ overflow-x:auto; }
+
+  /* ---------- Phones & small screens ---------- */
+  @media (max-width:860px){
+    body{ display:block; }
+    #app-shell{ display:block; }
+    .sidebar{ width:100%; height:auto; position:fixed; left:0; right:0; bottom:0; top:auto; z-index:40; flex-direction:row;
+      background:var(--primary-dark); box-shadow:0 -4px 16px rgba(0,0,0,.18); }
+    .brand, .sidebar-footer{ display:none; }
+    nav{ display:flex; overflow-x:auto; padding:4px 6px; gap:2px; flex:1; }
+    .nav-item{ flex-direction:column; gap:1px; font-size:10.5px; padding:6px 9px; min-width:62px; margin:0; text-align:center;
+      border-left:none; border-top:3px solid transparent; white-space:nowrap; border-radius:6px; }
+    .nav-item.active{ border-left:none; border-top:3px solid var(--accent); }
+    .nav-icon{ font-size:18px; }
+    .topbar{ padding:10px 12px; flex-wrap:wrap; gap:8px; }
+    .topbar h2{ font-size:17px; }
+    #todayDate{ display:none; }
+    .content{ padding:14px 12px 96px; }
+    .pos-grid{ grid-template-columns:1fr; }
+    .product-pick{ max-height:300px; }
+    .form-row{ grid-template-columns:repeat(2,1fr) !important; }
+    .card{ padding:14px; overflow-x:auto; }
+    table{ min-width:520px; }
+    .modal-overlay{ padding:16px 8px; }
+    .modal{ padding:16px; }
+  }
+  @media (max-width:480px){
+    .form-row{ grid-template-columns:1fr !important; }
+  }
+
+  /* ============================================================
+     POLISH LAYER — depth, motion, icon accents, refined states
+     ============================================================ */
+
+  /* ---- Sidebar: icon chips + smoother active state ---- */
+  .nav-item{ position:relative; gap:11px; }
+  .nav-icon{
+    width:26px; height:26px; border-radius:7px; background:rgba(255,255,255,.07);
+    display:flex; align-items:center; justify-content:center; transition:background .18s, transform .18s;
+  }
+  .nav-item:hover .nav-icon{ background:rgba(255,255,255,.14); }
+  .nav-item.active .nav-icon{ background:rgba(232,163,61,.22); transform:scale(1.04); }
+  .nav-item{ transition:background .15s, border-color .15s, padding-right .15s; }
+  .nav-item.active{ box-shadow:inset 0 0 0 1px rgba(232,163,61,.12); }
+  .brand .display{ display:flex; align-items:center; gap:9px; }
+  .brand .display::before{
+    content:"৳"; display:flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:8px;
+    background:linear-gradient(145deg,var(--accent),var(--accent-dark)); color:#2b1c02; font-family:'Tiro Bangla',serif;
+    font-size:16px; font-weight:700; flex-shrink:0;
+  }
+
+  /* ---- Topbar ---- */
+  .topbar{ box-shadow:0 1px 0 var(--border), 0 6px 14px -12px rgba(11,79,74,.25); }
+  .login-status{ box-shadow:0 1px 0 rgba(255,255,255,.6) inset; }
+
+  /* ---- Cards: soft colored depth instead of flat grey ---- */
+  .card{
+    box-shadow:0 1px 2px rgba(16,38,31,.04), 0 10px 24px -18px rgba(11,79,74,.18);
+    transition:box-shadow .2s ease;
+  }
+  .card-visibility-panel{ box-shadow:none; }
+
+  /* ---- Stat cards: icon medallion + lift on hover ---- */
+  .stat-card{ transition:transform .16s ease, box-shadow .16s ease; overflow:visible; }
+  .stat-card:hover{ transform:translateY(-2px); box-shadow:0 14px 28px -16px rgba(11,79,74,.28); }
+  .stat-card .icon{
+    position:absolute; top:14px; left:16px; width:34px; height:34px; border-radius:9px;
+    display:flex; align-items:center; justify-content:center; font-size:16px;
+    background:rgba(11,79,74,.08); color:var(--primary);
+  }
+  .stat-card.accent .icon{ background:rgba(232,163,61,.16); color:var(--accent-dark); }
+  .stat-card.danger .icon{ background:rgba(192,57,43,.1); color:var(--danger); }
+  .stat-card.success .icon{ background:rgba(30,138,95,.12); color:var(--success); }
+  .stat-card.has-icon{ padding-top:52px; }
+  .stat-card .value{ font-variant-numeric:tabular-nums; }
+
+  /* ---- Buttons: tactile press + subtle icon nudge ---- */
+  .btn{ box-shadow:0 1px 0 rgba(255,255,255,.15) inset, 0 2px 6px -2px rgba(0,0,0,.18); transition:background .15s, transform .08s, box-shadow .15s; }
+  .btn:active{ transform:translateY(1px) scale(.99); box-shadow:0 1px 2px rgba(0,0,0,.15) inset; }
+  .btn.ghost{ box-shadow:none; }
+  .btn.ghost:active{ transform:translateY(1px) scale(.99); }
+  .btn.accent{ box-shadow:0 1px 0 rgba(255,255,255,.35) inset, 0 4px 12px -4px rgba(201,134,31,.5); }
+
+  /* ---- Table: sticky header + calmer zebra + row entrance ---- */
+  .table-scroll, #productTableWrap, #invoiceTableWrap, #dueCustomerWrap, #reportInvoiceList, #reportProductList, #shopTableWrap, #staffTableWrap{
+    overflow-x:auto;
+  }
+  thead th{ position:sticky; top:0; z-index:2; backdrop-filter:saturate(1.1); }
+  tbody tr{ transition:background .12s; }
+  .pick-item{ transition:border-color .15s, background .15s, transform .1s; }
+  .pick-item:active{ transform:scale(.99); }
+
+  /* ---- Badges: dot indicator for quicker scanning ---- */
+  .badge{ display:inline-flex; align-items:center; gap:5px; }
+  .badge::before{ content:""; width:6px; height:6px; border-radius:50%; background:currentColor; opacity:.85; }
+
+  /* ---- View transition: one quiet fade, not per-card ---- */
+  .view{ opacity:0; transform:translateY(4px); }
+  .view.active{ opacity:1; transform:translateY(0); animation:viewIn .28s cubic-bezier(.2,.8,.2,1); }
+  @keyframes viewIn{ from{ opacity:0; transform:translateY(6px);} to{ opacity:1; transform:translateY(0);} }
+
+  /* ---- Modal: nicer entrance ---- */
+  .modal{ animation:modalIn .22s cubic-bezier(.2,.8,.2,1); }
+  @keyframes modalIn{ from{ opacity:0; transform:translateY(10px) scale(.98);} to{ opacity:1; transform:translateY(0) scale(1);} }
+
+  /* ---- Cart rows: quantity stepper feel ---- */
+  .cart-row{ border-radius:8px; padding:9px 6px; }
+  .cart-row:hover{ background:#F7FAF8; }
+  .cart-row input[type=number]{ text-align:center; font-weight:600; }
+
+  /* ---- Toast: icon + slide ---- */
+  .toast{
+    display:none; align-items:center; gap:9px; animation:toastIn .25s cubic-bezier(.2,.8,.2,1);
+    box-shadow:0 16px 32px -12px rgba(0,0,0,.4);
+  }
+  .toast.show{ display:flex; }
+  @keyframes toastIn{ from{ opacity:0; transform:translate(-50%,10px);} to{ opacity:1; transform:translate(-50%,0);} }
+
+  /* ---- Dashboard low-stock / empty polish ---- */
+  .empty .big{ filter:saturate(.9); }
+
+  /* ---- Focus visibility (accessibility) ---- */
+  a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, .nav-item:focus-visible, .pick-item:focus-visible{
+    outline:2px solid var(--accent); outline-offset:2px;
+  }
+
+  /* ---- Reduced motion ---- */
+  @media (prefers-reduced-motion: reduce){
+    .view, .view.active, .modal, .toast, .stat-card, .btn{ animation:none !important; transition:none !important; }
+  }
+
+  /* ---- Login: slightly richer card on top of existing entrance ---- */
+  .login-logo{ box-shadow:0 10px 22px -6px rgba(8,76,60,.5), 0 0 0 6px rgba(232,163,61,.08); }
+
 </style>
 </head>
-<body class="bg-slate-50 text-slate-900">
-<div id="app" class="min-h-screen pb-20"></div>
+<body>
+<!-- LOGIN / SETUP -->
+<div id="login-overlay">
+  <div class="login-card">
+    <div class="login-topbar"></div>
+    <div class="login-body">
+      <div class="login-logo">🧾</div>
+      <h1 class="display">দোকান হিসাব</h1>
+      <div class="tag" id="loginTag">লগইন করে সিস্টেম ব্যবহার করুন</div>
+
+      <div class="login-form" id="loginForm">
+        <div class="login-error" id="loginError"></div>
+        <label>ইমেইল</label>
+        <input id="loginEmail" type="email" placeholder="ইমেইল লিখুন" autocomplete="username">
+        <div class="mt12"></div>
+        <label>পাসওয়ার্ড</label>
+        <input id="loginPassword" type="password" placeholder="পাসওয়ার্ড লিখুন" autocomplete="current-password">
+        <button class="btn accent w100 mt16" id="btnLogin" style="justify-content:center;">🔓 লগইন করুন</button>
+      </div>
+
+      <div class="login-form" id="setupForm" style="display:none;">
+        <div class="login-error" id="setupError"></div>
+        <div class="muted" style="margin-bottom:12px;">প্রথমবার — আপনার Super Admin অ্যাকাউন্ট তৈরি করুন।</div>
+        <label>আপনার নাম</label><input id="setupName">
+        <div class="mt12"></div>
+        <label>ইমেইল</label><input id="setupEmail" type="email">
+        <div class="mt12"></div>
+        <label>পাসওয়ার্ড (কমপক্ষে ৬ ক্যারেক্টার)</label><input id="setupPassword" type="password">
+        <button class="btn accent w100 mt16" id="btnSetup" style="justify-content:center;">তৈরি করুন</button>
+      </div>
+    </div>
+    <div class="login-foot">শুধু অনুমোদিত ব্যবহারকারী প্রবেশ করতে পারবেন</div>
+  </div>
+</div>
+
+<div id="app-shell" class="hidden">
+<div class="sidebar">
+  <div class="brand">
+    <div class="display" id="shopNameLabel">দোকান হিসাব</div>
+    <small>OPS SYSTEM</small>
+  </div>
+  <nav id="mainNav">
+    <div class="nav-item active" data-view="dashboard"><span class="nav-icon">🏠</span> ড্যাশবোর্ড</div>
+    <div class="nav-item" data-view="pos"><span class="nav-icon">🧾</span> নতুন ইনভয়েজ</div>
+    <div class="nav-item" data-view="products"><span class="nav-icon">📦</span> পণ্য তালিকা</div>
+    <div class="nav-item" data-view="invoices"><span class="nav-icon">📋</span> সকল ইনভয়েজ</div>
+    <div class="nav-item" data-view="dues"><span class="nav-icon">💳</span> বাকি / পাওনা</div>
+    <div class="nav-item" data-view="reports"><span class="nav-icon">📊</span> রিপোর্ট</div>
+    <div class="nav-item" data-view="staff"><span class="nav-icon">👔</span> কর্মচারী</div>
+    <div class="nav-item" data-view="admin"><span class="nav-icon">🛡️</span> অ্যাডমিন</div>
+  </nav>
+  <div class="sidebar-footer">সকল তথ্য নিরাপদে ক্লাউডে সংরক্ষিত হয়</div>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <div>
+      <h2 id="viewTitle">ড্যাশবোর্ড</h2>
+      <div class="sub" id="viewSub">আজকের সংক্ষিপ্ত হিসাব</div>
+    </div>
+    <div class="flex gap12" style="flex-wrap:wrap;">
+      <span class="login-status" id="userBadge"></span>
+      <div class="muted" id="todayDate"></div>
+      <button class="btn ghost sm" id="btnChangePw">🔑 পাসওয়ার্ড</button>
+      <button class="btn ghost sm" id="btnLogout">🚪 লগআউট</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- DASHBOARD -->
+    <div class="view active" id="view-dashboard">
+      <div class="card card-visibility-panel">
+        <div class="card-head"><h3>⚙️ কোন কার্ড দেখতে চান বাছাই করুন</h3></div>
+        <div class="vis-panel-list">
+          <label class="vis-toggle"><input type="checkbox" data-card="overview" checked> সার্বিক হিসাব</label>
+          <label class="vis-toggle"><input type="checkbox" data-card="period" checked> নির্দিষ্ট সময়ের হিসাব</label>
+          <label class="vis-toggle"><input type="checkbox" data-card="recent" checked> সকল ইনভয়েজ</label>
+          <label class="vis-toggle"><input type="checkbox" data-card="lowstock" checked> স্টক সতর্কতা</label>
+        </div>
+      </div>
+
+      <div class="card" id="dashCard-overview">
+        <div class="card-head"><h3>সার্বিক হিসাব</h3></div>
+        <div class="stat-grid" id="dashStats" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr));"></div>
+      </div>
+
+      <div class="card" id="dashCard-period">
+        <div class="card-head"><h3>নির্দিষ্ট সময়ের হিসাব</h3></div>
+        <div class="form-row" style="--cols:3; align-items:end;">
+          <div>
+            <label>ধরন নির্বাচন করুন</label>
+            <select id="dashPeriodType">
+              <option value="day">দিন</option>
+              <option value="month">মাস</option>
+              <option value="year">বছর</option>
+            </select>
+          </div>
+          <div id="dashPeriodDayWrap"><label>তারিখ</label><input type="date" id="dashPeriodDay"></div>
+          <div id="dashPeriodMonthWrap" style="display:none;"><label>মাস</label><input type="month" id="dashPeriodMonth"></div>
+          <div id="dashPeriodYearWrap" style="display:none;"><label>বছর</label><input type="number" id="dashPeriodYear" min="2000" max="2100"></div>
+        </div>
+        <div class="stat-grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));" id="dashPeriodStats"></div>
+      </div>
+
+      <div class="card" id="dashCard-recent">
+        <div class="card-head">
+          <h3>সকল ইনভয়েজ</h3>
+          <button class="btn ghost sm" data-view="invoices">ফিল্টার করে দেখুন</button>
+        </div>
+        <input class="search-box" id="dashInvSearch" placeholder="🔍 কাস্টমার বা ইনভয়েজ নং দিয়ে খুঁজুন...">
+        <div style="max-height:420px; overflow-y:auto;" id="dashRecent"></div>
+      </div>
+
+      <div class="card" id="dashCard-lowstock">
+        <div class="card-head">
+          <h3>স্টক সতর্কতা</h3>
+          <button class="btn ghost sm" data-view="products">পণ্য দেখুন</button>
+        </div>
+        <div id="dashLowStock"></div>
+      </div>
+    </div>
+
+    <!-- POS / NEW INVOICE -->
+    <div class="view" id="view-pos">
+      <div class="pos-grid">
+        <div class="card">
+          <h3 class="mt8" style="margin-bottom:10px;">পণ্য বাছাই করুন</h3>
+          <input class="search-box" id="posSearch" placeholder="🔍 পণ্যের নাম লিখুন...">
+          <div class="product-pick" id="posProductList"></div>
+        </div>
+        <div class="card">
+          <h3 style="margin-bottom:10px;">কার্ট</h3>
+          <div id="cartItems"></div>
+          <div class="divider"></div>
+          <div class="cart-total-line"><span>উপমোট</span><span class="num" id="cartSubtotal">৳০</span></div>
+          <div class="form-row" style="--cols:2; margin-top:8px;">
+            <div><label>ডিসকাউন্ট (৳)</label><input type="number" id="discountInput" value="0" min="0"></div>
+            <div><label>চলতি বিলের মোট</label><input type="text" id="currentTotalDisplay" disabled></div>
+          </div>
+          <div class="divider"></div>
+          <label>কাস্টমারের নাম</label>
+          <input id="custName" placeholder="ওয়াক-ইন কাস্টমার (ঐচ্ছিক)">
+          <div class="mt8"></div>
+          <label>মোবাইল নম্বর</label>
+          <input id="custPhone" placeholder="ঐচ্ছিক">
+          <div class="mt8"></div>
+          <label>ক্রেতার ঠিকানা</label>
+          <input id="custAddress" placeholder="ঐচ্ছিক — গ্রাম/মহল্লা, থানা, জেলা">
+          <div id="prevDueNotice" class="prev-due-notice" style="display:none;"></div>
+          <div class="form-row" style="--cols:2; margin-top:10px;">
+            <div><label>পরিশোধিত (৳)</label><input type="number" id="paidInput" value="0" min="0"></div>
+            <div><label>পেমেন্ট মাধ্যম</label>
+              <select id="paymentMethodInput">
+                <option value="ক্যাশ">💵 ক্যাশ</option>
+                <option value="বিকাশ">📱 বিকাশ</option>
+                <option value="নগদ">📱 নগদ</option>
+                <option value="ব্যাংক ট্রান্সফার">🏦 ব্যাংক ট্রান্সফার</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row" style="--cols:2;">
+            <div><label>সর্বমোট (বকেয়াসহ)</label><input type="text" id="grandTotalDisplay" disabled></div>
+            <div><label>বাকি থাকবে</label><input type="text" id="dueDisplayInput" disabled></div>
+          </div>
+          <button class="btn accent w100 mt16" id="btnGenerateInvoice" style="justify-content:center;">✅ ইনভয়েজ তৈরি করুন</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PRODUCTS -->
+    <div class="view" id="view-products">
+      <div class="card">
+        <div class="card-head">
+          <h3>সকল পণ্য</h3>
+          <div class="flex gap8" style="align-items:center;">
+            <label class="vis-toggle" id="buyToggleWrap"><input type="checkbox" id="toggleBuyPrice" checked> ক্রয়মূল্য দেখান</label>
+            <button class="btn accent sm" id="btnAddProduct">+ নতুন পণ্য</button>
+          </div>
+        </div>
+        <input class="search-box" id="productSearch" placeholder="🔍 পণ্য খুঁজুন...">
+        <div id="productTableWrap"></div>
+      </div>
+    </div>
+
+    <!-- INVOICES -->
+    <div class="view" id="view-invoices">
+      <div class="card">
+        <div class="card-head"><h3>সকল ইনভয়েজ</h3></div>
+        <div class="form-row" style="--cols:4;">
+          <div><label>শুরুর তারিখ</label><input type="date" id="invFrom"></div>
+          <div><label>শেষ তারিখ</label><input type="date" id="invTo"></div>
+          <div><label>কাস্টমার / নং সার্চ</label><input id="invSearch" placeholder="নাম বা ইনভয়েজ নং"></div>
+          <div style="align-self:end;"><button class="btn ghost w100" id="btnClearInvFilter">রিসেট</button></div>
+        </div>
+        <div id="invoiceTableWrap"></div>
+      </div>
+    </div>
+
+    <!-- DUES -->
+    <div class="view" id="view-dues">
+      <div class="stat-grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); margin-bottom:18px;" id="dueStats"></div>
+      <div class="card">
+        <div class="card-head">
+          <h3>ডিউ শিট — শুধুমাত্র বকেয়া কাস্টমার</h3>
+          <input id="dueSearch" placeholder="🔍 কাস্টমার খুঁজুন..." style="width:220px; max-width:100%;">
+        </div>
+        <div id="dueCustomerWrap"></div>
+      </div>
+    </div>
+
+    <!-- REPORTS (owner only) -->
+    <div class="view" id="view-reports">
+      <div class="card">
+        <div class="pill-tabs">
+          <button class="active" data-rtype="day">দৈনিক</button>
+          <button data-rtype="month">মাসিক</button>
+        </div>
+        <div class="form-row" style="--cols:2;">
+          <div id="repDayWrap"><label>তারিখ নির্বাচন করুন</label><input type="date" id="repDate"></div>
+          <div id="repMonthWrap" style="display:none;"><label>মাস নির্বাচন করুন</label><input type="month" id="repMonth"></div>
+        </div>
+      </div>
+      <div class="stat-grid" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr));" id="reportStats"></div>
+      <div class="card">
+        <div class="card-head"><h3>বিক্রিত পণ্যসমূহ</h3></div>
+        <div id="reportProductList"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>ইনভয়েজসমূহ</h3></div>
+        <div id="reportInvoiceList"></div>
+      </div>
+    </div>
+
+    <!-- STAFF (owner only) -->
+    <div class="view" id="view-staff">
+      <div class="card">
+        <div class="card-head"><h3>কর্মচারী</h3><button class="btn accent sm" id="btnAddStaff">+ কর্মচারী যোগ করুন</button></div>
+        <div class="muted" style="margin-bottom:12px;">কর্মচারীরা বিক্রয় করতে ও বাকি নিতে পারবে, কিন্তু ক্রয়মূল্য, লাভ-ক্ষতি ও রিপোর্ট দেখতে পারবে না।</div>
+        <div id="staffTableWrap"></div>
+      </div>
+    </div>
+
+    <!-- ADMIN (super admin only) -->
+    <div class="view" id="view-admin">
+      <div class="card">
+        <div class="card-head"><h3>দোকানসমূহ</h3><button class="btn accent sm" id="btnAddShop">+ নতুন দোকান</button></div>
+        <div id="shopTableWrap"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<!-- Change Password Modal -->
+<div class="modal-overlay" id="pwModal">
+  <div class="modal">
+    <div class="modal-head"><h3>🔑 পাসওয়ার্ড পরিবর্তন</h3><button class="close-x" data-close="pwModal">✕</button></div>
+    <label>নতুন পাসওয়ার্ড</label><input type="password" id="pwNew">
+    <div class="mt12"></div>
+    <label>নতুন পাসওয়ার্ড আবার লিখুন</label><input type="password" id="pwConfirm">
+    <div class="login-error" id="pwModalError" style="margin-top:12px;"></div>
+    <button class="btn accent w100 mt16" id="btnSavePw" style="justify-content:center;">সংরক্ষণ করুন</button>
+  </div>
+</div>
+
+<!-- Add/Edit Product Modal -->
+<div class="modal-overlay" id="productModal">
+  <div class="modal">
+    <div class="modal-head"><h3 id="productModalTitle">নতুন পণ্য যোগ করুন</h3><button class="close-x" data-close="productModal">✕</button></div>
+    <input type="hidden" id="prodId">
+    <label>পণ্যের নাম</label><input id="prodName" placeholder="যেমন: চাল (মিনিকেট)">
+    <div class="form-row mt12" style="--cols:2;">
+      <div><label>ক্রয় মূল্য (৳)</label><input type="number" id="prodBuy" min="0" step="any"></div>
+      <div><label>বিক্রয় মূল্য (৳)</label><input type="number" id="prodSell" min="0" step="any"></div>
+    </div>
+    <div class="form-row" style="--cols:2;">
+      <div><label>স্টক পরিমাণ</label><input type="number" id="prodStock" min="0" step="any"></div>
+      <div><label>একক</label><input id="prodUnit" placeholder="পিস/কেজি/লিটার" value="পিস"></div>
+    </div>
+    <div class="form-row" style="--cols:2;">
+      <div><label>ক্যাটাগরি (ঐচ্ছিক)</label><input id="prodCategory"></div>
+      <div><label>নিম্ন স্টক সীমা</label><input type="number" id="prodReorder" value="5" min="0" step="any"></div>
+    </div>
+    <button class="btn accent w100 mt16" id="btnSaveProduct" style="justify-content:center;">সংরক্ষণ করুন</button>
+  </div>
+</div>
+
+<!-- Payment Modal -->
+<div class="modal-overlay" id="paymentModal">
+  <div class="modal">
+    <div class="modal-head"><h3>বকেয়া পরিশোধ</h3><button class="close-x" data-close="paymentModal">✕</button></div>
+    <input type="hidden" id="paymentInvoiceId">
+    <input type="hidden" id="paymentCustomerKey">
+    <div class="muted" id="paymentInfo"></div>
+    <div class="mt12"></div>
+    <label>পরিশোধের পরিমাণ (৳)</label>
+    <input type="number" id="paymentAmount" min="0" step="any">
+    <div class="mt12"></div>
+    <label>পেমেন্ট মাধ্যম</label>
+    <select id="paymentMethodSelect">
+      <option value="ক্যাশ">💵 ক্যাশ</option>
+      <option value="বিকাশ">📱 বিকাশ</option>
+      <option value="নগদ">📱 নগদ</option>
+      <option value="ব্যাংক ট্রান্সফার">🏦 ব্যাংক ট্রান্সফার</option>
+    </select>
+    <div class="muted mt8" id="paymentHint"></div>
+    <button class="btn accent w100 mt16" id="btnConfirmPayment" style="justify-content:center;">পরিশোধ নিশ্চিত করুন</button>
+  </div>
+</div>
+
+<!-- Invoice View / Print Modal -->
+<div class="modal-overlay" id="invoiceViewModal">
+  <div class="modal wide">
+    <div class="modal-head">
+      <h3>ইনভয়েজ প্রিভিউ</h3>
+      <div class="flex gap8">
+        <button class="btn ghost sm" id="btnReturnInvoice">↩️ পণ্য ফেরত নিন</button>
+        <button class="btn ghost sm" id="btnPrintInvoice">🖨️ প্রিন্ট করুন</button>
+        <button class="close-x" data-close="invoiceViewModal">✕</button>
+      </div>
+    </div>
+    <div id="invoicePreviewBody"></div>
+  </div>
+</div>
+
+<!-- Generic modal (staff / shop admin) -->
+<div class="modal-overlay" id="dynModal">
+  <div class="modal"><div id="dynModalBody"></div></div>
+</div>
+
+<div id="print-area"></div>
+<div class="toast" id="toast"></div>
 
 <script>
-/* ======================= CONFIG ======================= */
+/* ============ CONFIG ============ */
 const SUPABASE_URL = "https://adxnjwcjtdqbxowkxqpe.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFkeG5qd2NqdGRxYnhvd2t4cXBlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA0Njc4NzgsImV4cCI6MjEwNjA0Mzg3OH0.nMIjdgGSsTvn0bVEJgJ3S511HudwKw3bpl2T2I6IYP4";
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-/* ======================= I18N ======================= */
-const DICT = {
-  appName:["দোকান POS","Dokan POS"], login:["লগইন","Login"], email:["ইমেইল","Email"], password:["পাসওয়ার্ড","Password"],
-  loginBtn:["লগইন করুন","Log in"], logout:["লগ আউট","Logout"], dashboard:["ড্যাশবোর্ড","Dashboard"],
-  pos:["বিক্রয়","New Sale"], products:["পণ্য","Products"], stock:["স্টক","Stock"], customers:["কাস্টমার","Customers"],
-  sales:["বিক্রয় তালিকা","Sales"], reports:["রিপোর্ট","Reports"], staff:["কর্মচারী","Staff"], admin:["অ্যাডমিন","Admin"],
-  search:["খুঁজুন","Search"], searchProduct:["পণ্য খুঁজুন (নাম/কোড)","Search product (name/SKU)"],
-  cart:["কার্ট","Cart"], emptyCart:["কার্ট খালি","Cart is empty"], subtotal:["সাবটোটাল","Subtotal"],
-  discount:["ডিসকাউন্ট","Discount"], grandTotal:["সর্বমোট","Grand Total"], paid:["জমা","Paid"], due:["বাকি","Due"],
-  change:["ফেরত","Change"], walkIn:["সাধারণ ক্রেতা","Walk-in"], selectCustomer:["কাস্টমার বাছুন","Select customer"],
-  completeSale:["বিক্রয় সম্পন্ন করুন","Complete Sale"], saleDone:["বিক্রয় সম্পন্ন হয়েছে","Sale completed"],
-  notEnoughStock:["পর্যাপ্ত স্টক নেই","Not enough stock"], outOfStock:["স্টক শেষ","Out of stock"],
-  dueNeedsCustomer:["বাকি রাখতে কাস্টমার বাছাই করুন","Select a customer to keep a due"],
-  addProduct:["পণ্য যোগ","Add product"], editProduct:["পণ্য সম্পাদনা","Edit product"], productName:["পণ্যের নাম","Product name"],
-  category:["ক্যাটাগরি","Category"], sku:["কোড/SKU","SKU"], buyPrice:["ক্রয় মূল্য","Buy price"], sellPrice:["বিক্রয় মূল্য","Sell price"],
-  stockQty:["স্টক পরিমাণ","Stock qty"], lowStockLevel:["লো-স্টক সীমা","Low stock level"], save:["সংরক্ষণ","Save"], cancel:["বাতিল","Cancel"],
-  delete:["মুছুন","Delete"], confirmDelete:["আপনি কি নিশ্চিত?","Are you sure?"], productSaved:["পণ্য সংরক্ষিত হয়েছে","Product saved"],
-  productDeleted:["পণ্য মুছে ফেলা হয়েছে","Product deleted"], stockUpdated:["স্টক আপডেট হয়েছে","Stock updated"],
-  addCustomer:["কাস্টমার যোগ","Add customer"], editCustomer:["কাস্টমার সম্পাদনা","Edit customer"], name:["নাম","Name"],
-  phone:["ফোন","Phone"], address:["ঠিকানা","Address"], customerSaved:["কাস্টমার সংরক্ষিত হয়েছে","Customer saved"],
-  dueBalance:["মোট বাকি","Due balance"], collectDue:["বাকি আদায়","Collect due"], amount:["পরিমাণ","Amount"],
-  duePaid:["বাকি জমা হয়েছে","Due collected"], paymentHistory:["জমার ইতিহাস","Payment history"], noData:["কোনো তথ্য নেই","No data"],
-  from:["শুরু","From"], to:["শেষ","To"], billCount:["বিল সংখ্যা","Bills"], total:["মোট","Total"], noSales:["এই সময়ে কোনো বিক্রয় নেই","No sales in this period"],
-  profitLoss:["লাভ-ক্ষতি","Profit & Loss"], totalCost:["মোট খরচ","Total cost"], profit:["লাভ","Profit"], loss:["ক্ষতি","Loss"], totalDiscount:["মোট ডিসকাউন্ট","Total discount"],
-  addEmployee:["কর্মচারী যোগ","Add employee"], employeeCreated:["কর্মচারী তৈরি হয়েছে","Employee created"], active:["সক্রিয়","Active"], inactive:["নিষ্ক্রিয়","Inactive"],
-  shops:["দোকানসমূহ","Shops"], addShop:["নতুন দোকান","Add shop"], shopName:["দোকানের নাম","Shop name"], ownerName:["মালিকের নাম","Owner name"],
-  ownerEmail:["মালিকের ইমেইল","Owner email"], ownerPassword:["মালিকের পাসওয়ার্ড","Owner password"], shopCreated:["দোকান তৈরি হয়েছে","Shop created"],
-  noAccess:["এই পেজে আপনার অনুমতি নেই","You don't have access to this page"], error:["সমস্যা হয়েছে","Something went wrong"],
-  setupTitle:["প্রথম Super Admin অ্যাকাউন্ট তৈরি করুন","Create your first Super Admin account"], yourName:["আপনার নাম","Your name"],
-  setupBtn:["তৈরি করুন","Create"], setupDone:["তৈরি সম্পন্ন! এখন লগইন করুন","Setup complete! Please log in"],
-  receipt:["রশিদ","Receipt"], billNo:["বিল নং","Bill"], customer:["কাস্টমার","Customer"], items:["পণ্য","Items"],
-  thankYou:["ধন্যবাদ, আবার আসবেন","Thank you, come again"], print:["প্রিন্ট","Print"], back:["ফিরে যান","Back"],
-  shopInactive:["আপনার দোকান নিষ্ক্রিয় আছে","Your shop is inactive"], loading:["লোড হচ্ছে...","Loading..."],
-  onlyOwnerPrice:["দাম শুধু মালিক পরিবর্তন করতে পারেন","Only the owner can change prices"], stockIn:["স্টক ইন","Stock In"], stockOut:["স্টক আউট","Stock Out"],
-};
-let LANG = localStorage.getItem("lang") || "bn";
-function t(k){ return (DICT[k]||[k,k])[LANG==="bn"?0:1]; }
-function fmt(n){ n = Number(n||0); return (LANG==="bn" ? "৳" : "৳") + n.toLocaleString(LANG==="bn"?"bn-BD":"en-US",{maximumFractionDigits:2}); }
+/* ============ STATE ============ */
+let PROFILE = null, SHOP = null;
+let products = [];   // {id,name,category,unit,sellPrice,buyPrice(owner only),stock,reorder}
+let invoices = [];   // {id,invoiceNo,date,createdAt,customerName,...,items:[{name,qty,price,cost(owner only)}]}
+let cart = [];       // {productId,name,price,qty}
+let currentViewName = 'dashboard';
+let lastLoad = 0, viewToken = 0, creatingInvoice = false;
 
-/* ======================= STATE ======================= */
-let SESSION = null, PROFILE = null, SHOP = null;
-let ROUTE = location.hash.replace("#","") || "/dashboard";
-window.addEventListener("hashchange", () => { ROUTE = location.hash.replace("#","") || "/dashboard"; render(); });
+const $ = id => document.getElementById(id);
+const isOwner = () => !!PROFILE && PROFILE.role === 'owner';
+const isSuper = () => !!PROFILE && PROFILE.role === 'super_admin';
 
-const app = document.getElementById("app");
-function nav(path){ location.hash = path; }
-function toast(msg, isErr){
-  const el = document.createElement("div");
-  el.textContent = msg;
-  el.className = "fixed top-3 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-lg shadow-lg text-sm text-white " + (isErr?"bg-red-600":"bg-emerald-600");
-  document.body.appendChild(el);
-  setTimeout(()=>el.remove(), 2500);
+/* ============ UTILS ============ */
+function money(n){ n = Number(n)||0; return '৳' + n.toLocaleString('en-IN', {maximumFractionDigits:2}); }
+function esc(str){
+  if(str===null || str===undefined) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function jsAttr(str){
+  if(str===null || str===undefined) return '';
+  const j = String(str).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,'\\n').replace(/\r/g,'');
+  return j.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function pad2(n){ return String(n).padStart(2,'0'); }
+function todayISO(){ const d = new Date(); return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()); }
+function fmtDate(iso){
+  if(!iso) return '';
+  return new Date(iso + 'T00:00:00').toLocaleDateString('bn-BD', {day:'numeric', month:'long', year:'numeric'});
+}
+function showToast(msg){
+  const t = $('toast');
+  const isWarn = msg.indexOf('⚠️') === 0;
+  t.innerHTML = `<span>${isWarn ? '⚠️' : '✅'}</span><span>${esc(msg.replace(/^(⚠️|✅)\s*/,''))}</span>`;
+  t.classList.add('show');
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(()=>{ t.classList.remove('show'); }, 2800);
+}
+function lsGet(key, fb){ try{ const r = localStorage.getItem(key); return r!=null ? JSON.parse(r) : fb; }catch(e){ return fb; } }
+function lsSet(key, v){ try{ localStorage.setItem(key, JSON.stringify(v)); }catch(e){} }
+function errMsg(e){ return (e && (e.message || e.error_description)) || 'কিছু একটা সমস্যা হয়েছে'; }
+
+function openModal(id){ $(id).classList.add('active'); }
+function closeModal(id){ $(id).classList.remove('active'); }
+document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', ()=> closeModal(b.dataset.close)));
+document.querySelectorAll('.modal-overlay').forEach(ov => ov.addEventListener('click', e => { if(e.target===ov) ov.classList.remove('active'); }));
+function openDyn(html){ $('dynModalBody').innerHTML = html; openModal('dynModal'); }
+function closeDyn(){ closeModal('dynModal'); }
+
+/* ============ DATA LOADING ============ */
+async function fetchAll(make){
+  const size = 1000; let all = [], from = 0;
+  for(;;){
+    const { data, error } = await make().range(from, from + size - 1);
+    if(error) throw error;
+    const rows = data || [];
+    all = all.concat(rows);
+    if(rows.length < size) break;
+    from += size;
+  }
+  return all;
+}
+async function loadProducts(){
+  const rows = isOwner()
+    ? await fetchAll(()=> sb.rpc('products_with_cost').order('name').order('id'))
+    : await fetchAll(()=> sb.from('products').select('id,name,category,unit,sell_price,stock_qty,low_stock_level').order('name').order('id'));
+  products = rows.map(r => ({
+    id:r.id, name:r.name, category:r.category||'', unit:r.unit||'পিস',
+    sellPrice:Number(r.sell_price), buyPrice: r.buy_price!=null ? Number(r.buy_price) : null,
+    stock:Number(r.stock_qty), reorder:Number(r.low_stock_level)
+  }));
+}
+async function loadInvoices(){
+  const rows = await fetchAll(()=> sb.from('sales')
+    .select('id,invoice_no,invoice_date,created_at,customer_name,customer_phone,customer_address,subtotal,discount,total,previous_due,payable,paid,due,payment_method,due_transferred_to,sale_items(id,product_id,name,qty,unit_price,subtotal,returned_qty)')
+    .order('created_at',{ascending:false}).order('id'));
+  const costMap = {};
+  if(isOwner()){
+    const cr = await fetchAll(()=> sb.rpc('item_costs').order('item_id'));
+    cr.forEach(c => { costMap[c.item_id] = Number(c.cost); });
+  }
+  invoices = rows.map(r => ({
+    id:r.id, invoiceNo:r.invoice_no, date:r.invoice_date, createdAt:Date.parse(r.created_at),
+    customerName:r.customer_name, customerPhone:r.customer_phone||'', customerAddress:r.customer_address||'',
+    subtotal:+r.subtotal, discount:+r.discount, total:+r.total, previousDue:+r.previous_due, payable:+r.payable,
+    paid:+r.paid, due:+r.due, paymentMethod:r.payment_method, dueTransferredTo:r.due_transferred_to,
+    items:(r.sale_items||[]).map(it => ({ id:it.id, productId:it.product_id, name:it.name, qty:+it.qty, returnedQty:+(it.returned_qty||0), price:+it.unit_price, cost:costMap[it.id] }))
+  }));
+}
+async function loadReturns(){
+  const rows = await fetchAll(()=> sb.from('returns')
+    .select('id,sale_id,refund_amount,applied_to_due,cash_refund,reason,created_at,return_items(id,sale_item_id,product_id,name,qty,unit_price,subtotal)')
+    .order('created_at',{ascending:false}).order('id'));
+  const costMap = {};
+  if(isOwner()){
+    const cr = await fetchAll(()=> sb.rpc('return_item_costs').order('item_id'));
+    cr.forEach(c => { costMap[c.item_id] = Number(c.cost); });
+  }
+  const bySale = {};
+  rows.forEach(r => {
+    const ret = {
+      id:r.id, saleId:r.sale_id, refundAmount:+r.refund_amount, appliedToDue:+r.applied_to_due, cashRefund:+r.cash_refund,
+      reason:r.reason, createdAt:Date.parse(r.created_at),
+      items:(r.return_items||[]).map(it => ({ id:it.id, saleItemId:it.sale_item_id, productId:it.product_id, name:it.name, qty:+it.qty, price:+it.unit_price, subtotal:+it.subtotal, cost:costMap[it.id] }))
+    };
+    (bySale[r.sale_id] = bySale[r.sale_id] || []).push(ret);
+  });
+  return bySale;
+}
+async function refreshData(force){
+  if(!force && Date.now() - lastLoad < 8000) return;
+  try{
+    await Promise.all([loadProducts(), loadInvoices()]);
+    const bySale = await loadReturns();
+    invoices.forEach(inv => { inv.returns = bySale[inv.id] || []; inv.returnedTotal = inv.returns.reduce((s,r)=> s + r.refundAmount, 0); });
+    lastLoad = Date.now();
+  }catch(e){ showToast('⚠️ তথ্য লোড হয়নি: ' + errMsg(e)); }
 }
 
-/* ======================= AUTH / BOOTSTRAP ======================= */
-async function checkSuperAdminExists(){
-  const { data, error } = await sb.rpc("setup_done");
-  if(error) return false;
-  return !!data;
+/* ============ AUTH / START ============ */
+function showLoginScreen(msg){
+  $('app-shell').classList.add('hidden');
+  $('login-overlay').classList.remove('hidden');
+  const err = $('loginError');
+  if(msg){ err.textContent = msg; err.style.display = 'block'; } else err.style.display = 'none';
+  sb.rpc('setup_done').then(({data,error})=>{
+    const needSetup = !error && data === false;
+    $('setupForm').style.display = needSetup ? 'block' : 'none';
+    $('loginForm').style.display = needSetup ? 'none' : 'block';
+    $('loginTag').textContent = needSetup ? 'প্রথমবার সেটআপ' : 'লগইন করে সিস্টেম ব্যবহার করুন';
+  });
 }
-async function loadSession(){
+async function startApp(){
   const { data:{ session } } = await sb.auth.getSession();
-  SESSION = session;
-  if(!session){ PROFILE=null; SHOP=null; return; }
-  const { data: profile } = await sb.from("profiles").select("*").eq("id",session.user.id).single();
-  PROFILE = profile;
-  if(profile && profile.shop_id){
-    const { data: shop } = await sb.from("shops").select("*").eq("id",profile.shop_id).single();
+  if(!session){ showLoginScreen(); return; }
+  const { data: profile } = await sb.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
+  if(!profile || !profile.is_active){ await sb.auth.signOut(); showLoginScreen('আপনার অ্যাকাউন্ট সক্রিয় নেই'); return; }
+  PROFILE = profile; SHOP = null;
+  if(profile.shop_id){
+    const { data: shop } = await sb.from('shops').select('*').eq('id', profile.shop_id).maybeSingle();
     SHOP = shop;
-  } else SHOP = null;
+    if(!SHOP){ await sb.auth.signOut(); showLoginScreen('আপনার দোকান নিষ্ক্রিয় আছে — অ্যাডমিনের সাথে যোগাযোগ করুন'); return; }
+  }
+  $('login-overlay').classList.add('hidden');
+  $('app-shell').classList.remove('hidden');
+  $('shopNameLabel').textContent = SHOP ? SHOP.name : 'সুপার অ্যাডমিন';
+  const roleLabel = isSuper() ? 'Super Admin' : (isOwner() ? 'মালিক' : 'কর্মচারী');
+  $('userBadge').textContent = PROFILE.name + ' · ' + roleLabel;
+  $('todayDate').textContent = fmtDate(todayISO());
+  applyNavByRole();
+  lastLoad = 0; products = []; invoices = []; cart = [];
+  goView(isSuper() ? 'admin' : 'dashboard');
 }
-sb.auth.onAuthStateChange(async (_e, session) => { SESSION = session; await render(); });
+$('btnLogin').addEventListener('click', async ()=>{
+  const email = $('loginEmail').value.trim(), password = $('loginPassword').value;
+  if(!email || !password){ showLoginScreen('ইমেইল ও পাসওয়ার্ড দিন'); return; }
+  $('btnLogin').disabled = true;
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  $('btnLogin').disabled = false;
+  if(error){ const e = $('loginError'); e.textContent = 'ইমেইল বা পাসওয়ার্ড ভুল'; e.style.display = 'block'; return; }
+  $('loginPassword').value = '';
+  await startApp();
+});
+$('loginPassword').addEventListener('keydown', e => { if(e.key==='Enter') $('btnLogin').click(); });
+$('btnSetup').addEventListener('click', async ()=>{
+  const err = $('setupError'); err.style.display = 'none';
+  try{
+    await callFn('bootstrap_super_admin', { name:$('setupName').value.trim(), email:$('setupEmail').value.trim(), password:$('setupPassword').value });
+    showLoginScreen(); showToast('✅ তৈরি সম্পন্ন! এখন লগইন করুন');
+  }catch(e){ err.textContent = errMsg(e); err.style.display = 'block'; }
+});
+async function doLogout(msg){
+  await sb.auth.signOut();
+  PROFILE = null; SHOP = null; products = []; invoices = []; cart = [];
+  showLoginScreen(typeof msg === 'string' ? msg : undefined);
+}
+$('btnLogout').addEventListener('click', ()=> doLogout());
+
+let lastActivityAt = Date.now();
+['mousemove','keydown','click','touchstart'].forEach(evt => document.addEventListener(evt, ()=>{ lastActivityAt = Date.now(); }, {passive:true}));
+setInterval(()=>{ if(PROFILE && Date.now() - lastActivityAt > 20*60*1000) doLogout('⏱️ নিষ্ক্রিয়তার কারণে স্বয়ংক্রিয়ভাবে লগআউট হয়ে গেছে'); }, 30000);
+
+$('btnChangePw').addEventListener('click', ()=>{ $('pwNew').value=''; $('pwConfirm').value=''; $('pwModalError').style.display='none'; openModal('pwModal'); });
+$('btnSavePw').addEventListener('click', async ()=>{
+  const a = $('pwNew').value, b = $('pwConfirm').value, err = $('pwModalError');
+  if(a.length < 6){ err.textContent='কমপক্ষে ৬ ক্যারেক্টার দিন'; err.style.display='block'; return; }
+  if(a !== b){ err.textContent='দুইটা পাসওয়ার্ড মিলছে না'; err.style.display='block'; return; }
+  const { error } = await sb.auth.updateUser({ password: a });
+  if(error){ err.textContent = errMsg(error); err.style.display='block'; return; }
+  closeModal('pwModal'); showToast('✅ পাসওয়ার্ড পরিবর্তন হয়েছে');
+});
 
 async function callFn(action, payload){
-  const { data, error } = await sb.functions.invoke("admin-actions", { body: { action, ...payload } });
-  if(error){ throw new Error(error.message || t("error")); }
+  const { data, error } = await sb.functions.invoke('admin-actions', { body: { action, ...payload } });
+  if(error){
+    let msg = error.message;
+    try{ const j = await error.context.json(); if(j && j.error) msg = j.error; }catch(e){}
+    throw new Error(msg);
+  }
   if(data && data.error) throw new Error(data.error);
   return data;
 }
 
-/* ======================= LAYOUT ======================= */
-function langToggle(){
-  return `<button onclick="setLang()" class="text-xs font-semibold px-2.5 py-1 rounded-full border border-slate-300 bg-white">${LANG==="bn"?"EN":"বাং"}</button>`;
+/* ============ NAV ============ */
+const titles = {
+  dashboard:['ড্যাশবোর্ড','আজকের সংক্ষিপ্ত হিসাব'],
+  pos:['নতুন ইনভয়েজ','পণ্য যোগ করে বিক্রয় সম্পন্ন করুন'],
+  products:['পণ্য তালিকা','সকল পণ্যের ক্রয়-বিক্রয় হিসাব'],
+  invoices:['সকল ইনভয়েজ','তারিখ অনুযায়ী খুঁজুন ও প্রিন্ট করুন'],
+  dues:['বাকি / পাওনা','কাস্টমারদের বকেয়ার হিসাব'],
+  reports:['রিপোর্ট','দিন বা মাস অনুযায়ী লাভ-ক্ষতি'],
+  staff:['কর্মচারী','আপনার দোকানের কর্মচারী ব্যবস্থাপনা'],
+  admin:['অ্যাডমিন','দোকান ও ইউজার ব্যবস্থাপনা']
+};
+function allowedViews(){
+  if(isSuper()) return ['admin'];
+  if(isOwner()) return ['dashboard','pos','products','invoices','dues','reports','staff'];
+  return ['dashboard','pos','products','invoices','dues'];
 }
-function setLang(){ LANG = LANG==="bn"?"en":"bn"; localStorage.setItem("lang",LANG); render(); }
+function applyNavByRole(){
+  const ok = allowedViews();
+  document.querySelectorAll('#mainNav .nav-item').forEach(n => { n.style.display = ok.includes(n.dataset.view) ? '' : 'none'; });
+  $('buyToggleWrap').style.display = isOwner() ? '' : 'none';
+  $('btnAddProduct').style.display = isOwner() ? '' : 'none';
+}
+async function goView(name){
+  if(!PROFILE) return;
+  if(!allowedViews().includes(name)) name = allowedViews()[0];
+  currentViewName = name;
+  const tok = ++viewToken;
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.view === name));
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + name));
+  $('viewTitle').textContent = titles[name][0];
+  $('viewSub').textContent = titles[name][1];
+  if(['dashboard','pos','products','invoices','dues','reports'].includes(name)){
+    await refreshData(false);
+    if(tok !== viewToken) return;
+  }
+  renderView(name);
+}
+function renderView(name){
+  if(name==='dashboard') renderDashboard();
+  else if(name==='pos') renderPOS();
+  else if(name==='products') renderProducts();
+  else if(name==='invoices') renderInvoices();
+  else if(name==='dues') renderDues();
+  else if(name==='reports') renderReports();
+  else if(name==='staff') renderStaff();
+  else if(name==='admin') renderAdmin();
+}
+document.querySelectorAll('[data-view]').forEach(el => el.addEventListener('click', ()=> goView(el.dataset.view)));
 
-function navItems(){
-  if(!PROFILE) return [];
-  if(PROFILE.role === "super_admin") return [["/admin", t("admin"), "🛡️"]];
-  const items = [["/dashboard", t("dashboard"), "🏠"], ["/pos", t("pos"), "🧾"], ["/products", t("stock"), "📦"], ["/customers", t("customers"), "👥"], ["/sales", t("sales"), "🗂️"]];
-  if(PROFILE.role === "owner"){ items.push(["/reports", t("reports"), "📊"]); items.push(["/staff", t("staff"), "👔"]); }
-  return items;
+/* ============ HELPERS: profit & status ============ */
+function invoiceProfit(inv){
+  return inv.items.reduce((s,it) => {
+    const soldQty = Math.max(0, it.qty - (it.returnedQty||0));
+    const unitCost = it.qty > 0 ? (it.cost||0) / it.qty : 0;
+    return s + it.price*soldQty - unitCost*soldQty;
+  }, 0) - (inv.discount||0);
 }
-function layout(content){
-  const items = navItems();
-  return `
-  <div class="max-w-5xl mx-auto px-3 pt-4">
-    <div class="flex items-center justify-between mb-4">
-      <h1 class="text-lg font-bold flex items-center gap-2">🏪 ${t("appName")}</h1>
-      <div class="flex items-center gap-2">
-        ${langToggle()}
-        ${SESSION ? `<button onclick="doLogout()" class="text-xs font-semibold px-2.5 py-1 rounded-full border border-slate-300 bg-white">${t("logout")}</button>` : ""}
-      </div>
-    </div>
-    ${SHOP && PROFILE && PROFILE.role !== "super_admin" ? `<p class="text-xs text-slate-500 mb-2">🏬 ${SHOP.name}${!SHOP.is_active ? " · <span class='text-red-600 font-semibold'>"+t("inactive")+"</span>":""}</p>` : ""}
-    <div id="content">${content}</div>
-  </div>
-  ${items.length ? `
-  <nav class="no-print fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-20">
-    <div class="max-w-5xl mx-auto flex justify-around overflow-x-auto py-1.5">
-      ${items.map(([path,label,icon]) => `
-        <button onclick="nav('${path}')" class="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-[11px] min-w-14 ${ROUTE===path?"bg-emerald-50 text-emerald-700":"text-slate-500"}">
-          <span class="text-lg leading-none">${icon}</span><span class="whitespace-nowrap">${label}</span>
-        </button>`).join("")}
-    </div>
-  </nav>` : ""}`;
-}
-async function doLogout(){ await sb.auth.signOut(); SESSION=null; PROFILE=null; SHOP=null; nav("/login"); render(); }
-
-/* ======================= LOGIN / SETUP ======================= */
-function loginView(){
-  return `
-  <div class="max-w-sm mx-auto mt-16 bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-    <h1 class="text-xl font-bold text-center mb-1">🏪 ${t("appName")}</h1>
-    <p class="text-center text-sm text-slate-500 mb-5">${t("login")}</p>
-    <form onsubmit="doLogin(event)" class="space-y-3">
-      <div><label class="text-xs font-medium text-slate-600">${t("email")}</label>
-        <input required type="email" id="li-email" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300"/></div>
-      <div><label class="text-xs font-medium text-slate-600">${t("password")}</label>
-        <input required type="password" id="li-pass" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300"/></div>
-      <button class="w-full bg-emerald-600 text-white font-semibold py-2.5 rounded-lg">${t("loginBtn")}</button>
-    </form>
-  </div>`;
-}
-async function doLogin(e){
-  e.preventDefault();
-  const email = document.getElementById("li-email").value, password = document.getElementById("li-pass").value;
-  const { error } = await sb.auth.signInWithPassword({ email, password });
-  if(error) return toast(error.message, true);
-  await loadSession();
-  nav(PROFILE?.role === "super_admin" ? "/admin" : "/dashboard");
-  render();
-}
-function setupView(){
-  return `
-  <div class="max-w-sm mx-auto mt-16 bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-    <h1 class="text-lg font-bold text-center mb-4">${t("setupTitle")}</h1>
-    <form onsubmit="doSetup(event)" class="space-y-3">
-      <div><label class="text-xs font-medium text-slate-600">${t("yourName")}</label>
-        <input required id="su-name" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300"/></div>
-      <div><label class="text-xs font-medium text-slate-600">${t("email")}</label>
-        <input required type="email" id="su-email" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300"/></div>
-      <div><label class="text-xs font-medium text-slate-600">${t("password")}</label>
-        <input required minlength="6" type="password" id="su-pass" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300"/></div>
-      <button class="w-full bg-emerald-600 text-white font-semibold py-2.5 rounded-lg">${t("setupBtn")}</button>
-    </form>
-  </div>`;
-}
-async function doSetupReal(e){
-  e.preventDefault();
-  const name = document.getElementById("su-name").value, email = document.getElementById("su-email").value, password = document.getElementById("su-pass").value;
-  try{
-    await callFn("bootstrap_super_admin", { name, email, password });
-    toast(t("setupDone"));
-    nav("/login"); render();
-  }catch(err){ toast(err.message, true); }
-}
-window.doSetup = doSetupReal;
-
-/* ======================= DASHBOARD ======================= */
-async function dashboardView(){
-  if(PROFILE.role === "super_admin"){ nav("/admin"); return ""; }
-  if(SHOP && !SHOP.is_active) return `<p class="bg-white rounded-xl p-5 text-sm">${t("shopInactive")}</p>`;
-  const today = ymd(new Date());
-  const { start, end } = rangeISO(today, today);
-  const { data: todaySales } = await sb.from("sales").select("total").gte("created_at",start).lt("created_at",end);
-  const todayTotal = (todaySales||[]).reduce((a,s)=>a+Number(s.total),0);
-  const { data: dueCustomers } = await sb.from("customers").select("due_amount").gt("due_amount",0);
-  const totalDue = (dueCustomers||[]).reduce((a,c)=>a+Number(c.due_amount),0);
-  const { data: lowStock } = await sb.from("products").select("id,name,stock_qty,low_stock_level");
-  const low = (lowStock||[]).filter(p=>Number(p.stock_qty)<=Number(p.low_stock_level));
-  return `
-  <div class="grid grid-cols-2 gap-3">
-    <div class="bg-white rounded-xl p-4 border border-slate-200"><p class="text-xs text-slate-500">${t("total")} (${t("dashboard")})</p><p class="text-xl font-bold num">${fmt(todayTotal)}</p></div>
-    <div class="bg-white rounded-xl p-4 border border-slate-200"><p class="text-xs text-slate-500">${t("due")}</p><p class="text-xl font-bold num text-red-600">${fmt(totalDue)}</p></div>
-  </div>
-  <div class="bg-white rounded-xl p-4 border border-slate-200 mt-3">
-    <p class="text-sm font-semibold mb-2">⚠️ Low stock</p>
-    ${low.length===0? `<p class="text-sm text-slate-400">${t("noData")}</p>` : `<ul class="text-sm divide-y divide-slate-100">${low.map(p=>`<li class="py-1.5 flex justify-between"><span>${p.name}</span><span class="num text-red-600 font-semibold">${Number(p.stock_qty)}</span></li>`).join("")}</ul>`}
-  </div>
-  <div class="grid grid-cols-2 gap-3 mt-3">
-    <button onclick="nav('/pos')" class="bg-emerald-600 text-white rounded-xl py-4 font-semibold">🧾 ${t("pos")}</button>
-    <button onclick="nav('/customers')" class="bg-white border border-slate-200 rounded-xl py-4 font-semibold">👥 ${t("customers")}</button>
-  </div>`;
-}
-function ymd(d){ const p=n=>String(n).padStart(2,"0"); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`; }
-function rangeISO(from,to){ const s=new Date(from+"T00:00:00"), e=new Date(to+"T00:00:00"); e.setDate(e.getDate()+1); return {start:s.toISOString(), end:e.toISOString()}; }
-
-/* ======================= POS ======================= */
-let CART = [];
-async function posView(){
-  const { data: products } = await sb.from("products").select("id,name,sku,sell_price,stock_qty").order("name");
-  window.__PRODUCTS = products||[];
-  return `
-  <div class="grid md:grid-cols-[1fr_340px] gap-4">
-    <div>
-      <input id="pos-q" oninput="renderProductGrid()" onkeydown="if(event.key==='Enter'){addFirstMatch()}" placeholder="${t('searchProduct')}" class="w-full px-3 py-3 rounded-lg border border-slate-300 mb-3" autofocus/>
-      <div id="pos-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-2"></div>
-    </div>
-    <div class="bg-white border border-slate-200 rounded-xl p-4 space-y-3 h-fit">
-      <h2 class="font-semibold">${t('cart')} <span class="text-xs text-slate-400 num">(${CART.length})</span></h2>
-      <div id="pos-cart"></div>
-      <div>
-        <label class="text-xs font-medium text-slate-600">${t('customer')}</label>
-        <div id="pos-customer"></div>
-      </div>
-      <div id="pos-totals" class="space-y-1.5 text-sm num"></div>
-      <button onclick="completeSale()" class="w-full bg-emerald-600 text-white font-semibold py-3 rounded-lg">${t('completeSale')}</button>
-    </div>
-  </div>`;
-}
-let POS_CUSTOMER = null;
-function renderProductGrid(){
-  const q = (document.getElementById("pos-q")?.value||"").toLowerCase().trim();
-  let list = window.__PRODUCTS||[];
-  list = q ? list.filter(p=>p.name.toLowerCase().includes(q) || (p.sku||"").toLowerCase().includes(q)) : list.slice(0,12);
-  document.getElementById("pos-grid").innerHTML = list.map(p=>{
-    const out = Number(p.stock_qty)<=0;
-    return `<button ${out?"disabled":""} onclick="addToCart('${p.id}')" class="bg-white border border-slate-200 rounded-xl p-3 text-left ${out?"opacity-40":""}">
-      <p class="text-sm font-medium line-clamp-2">${p.name}</p>
-      <p class="num font-bold text-emerald-700 mt-1">${fmt(p.sell_price)}</p>
-      <p class="num text-xs text-slate-400">${out?t('outOfStock'):(t('stock')+': '+Number(p.stock_qty))}</p></button>`;
-  }).join("") || `<p class="text-sm text-slate-400 col-span-3">${t('noData')}</p>`;
-}
-function addFirstMatch(){
-  const q = (document.getElementById("pos-q")?.value||"").toLowerCase().trim();
-  const list = (window.__PRODUCTS||[]).filter(p=>p.name.toLowerCase().includes(q) || (p.sku||"").toLowerCase().includes(q));
-  if(list[0]){ addToCart(list[0].id); document.getElementById("pos-q").value=""; renderProductGrid(); }
-}
-function addToCart(id){
-  const p = (window.__PRODUCTS||[]).find(x=>x.id===id); if(!p) return;
-  const line = CART.find(l=>l.p.id===id);
-  const nextQty = (line?line.qty:0)+1;
-  if(nextQty > Number(p.stock_qty)) return toast(t('notEnoughStock'), true);
-  if(line) line.qty = nextQty; else CART.push({p, qty:1});
-  renderCart();
-}
-function setQty(id, qty){
-  const line = CART.find(l=>l.p.id===id); if(!line) return;
-  if(qty > Number(line.p.stock_qty)) return toast(t('notEnoughStock'), true);
-  if(qty<=0) CART = CART.filter(l=>l.p.id!==id); else line.qty = qty;
-  renderCart();
-}
-function cartTotals(){
-  const subtotal = CART.reduce((s,l)=>s+l.qty*Number(l.p.sell_price),0);
-  const discount = Math.min(Math.max(Number(document.getElementById("pos-discount")?.value||0),0), subtotal);
-  const grand = subtotal - discount;
-  const paidInput = document.getElementById("pos-paid")?.value;
-  const paid = paidInput===""||paidInput===undefined ? grand : Math.max(Number(paidInput)||0,0);
-  const due = Math.max(grand-paid,0), change = Math.max(paid-grand,0);
-  return {subtotal,discount,grand,paid,due,change};
-}
-function renderCart(){
-  document.getElementById("pos-cart").innerHTML = CART.length===0 ? `<p class="text-sm text-slate-400">${t('emptyCart')}</p>` :
-    `<ul class="divide-y divide-slate-100">${CART.map(l=>`
-      <li class="py-2 flex items-center gap-2">
-        <div class="flex-1 min-w-0"><p class="text-sm truncate">${l.p.name}</p><p class="num text-xs text-slate-400">${fmt(l.p.sell_price)} × ${l.qty} = ${fmt(l.qty*l.p.sell_price)}</p></div>
-        <button onclick="setQty('${l.p.id}',${l.qty-1})" class="w-7 h-7 rounded border border-slate-300">−</button>
-        <span class="num w-6 text-center">${l.qty}</span>
-        <button onclick="setQty('${l.p.id}',${l.qty+1})" class="w-7 h-7 rounded border border-slate-300">+</button>
-      </li>`).join("")}</ul>`;
-  document.getElementById("pos-customer").innerHTML = POS_CUSTOMER ?
-    `<div class="flex items-center justify-between bg-slate-100 rounded-lg px-3 py-2 text-sm mt-1"><span>${POS_CUSTOMER.name}</span><button onclick="POS_CUSTOMER=null;renderCart()" class="text-xs underline">${t('walkIn')}</button></div>` :
-    `<input id="pos-cust-q" placeholder="${t('walkIn')} · ${t('search')}" oninput="renderCustPick()" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300 text-sm"/><div id="pos-cust-results"></div>`;
-  renderTotals();
-}
-async function renderCustPick(){
-  const q = document.getElementById("pos-cust-q").value.trim();
-  if(!q){ document.getElementById("pos-cust-results").innerHTML=""; return; }
-  const { data } = await sb.from("customers").select("id,name,phone,due_amount").ilike("name",`%${q}%`).limit(6);
-  document.getElementById("pos-cust-results").innerHTML = (data||[]).map(c=>
-    `<button onclick='pickCustomer(${JSON.stringify(c.id)},${JSON.stringify(c.name)})' class="w-full text-left px-2 py-1.5 text-sm hover:bg-slate-50 rounded flex justify-between"><span>${c.name} <span class="text-xs text-slate-400">${c.phone||""}</span></span><span class="num text-xs text-red-600">${fmt(c.due_amount)}</span></button>`
-  ).join("");
-}
-function pickCustomer(id,name){ POS_CUSTOMER = {id,name}; renderCart(); }
-function renderTotals(){
-  const {subtotal,discount,grand,due,change} = cartTotals();
-  document.getElementById("pos-totals").innerHTML = `
-    <div class="flex justify-between"><span>${t('subtotal')}</span><span>${fmt(subtotal)}</span></div>
-    <div class="flex justify-between items-center gap-2"><span>${t('discount')}</span><input id="pos-discount" type="number" value="0" oninput="renderTotals()" class="w-24 text-right px-2 py-1 border border-slate-300 rounded"/></div>
-    <div class="flex justify-between font-bold text-base"><span>${t('grandTotal')}</span><span>${fmt(grand)}</span></div>
-    <div class="flex justify-between items-center gap-2"><span>${t('paid')}</span><input id="pos-paid" type="number" placeholder="${grand}" oninput="renderTotals()" class="w-24 text-right px-2 py-1 border border-slate-300 rounded"/></div>
-    <div class="flex justify-between text-red-600"><span>${t('due')}</span><span>${fmt(due)}</span></div>
-    ${change>0?`<div class="flex justify-between text-slate-500"><span>${t('change')}</span><span>${fmt(change)}</span></div>`:""}`;
-}
-async function completeSale(){
-  if(CART.length===0) return;
-  const {discount,grand,paid,due} = cartTotals();
-  if(due>0 && !POS_CUSTOMER) return toast(t('dueNeedsCustomer'), true);
-  try{
-    const { data: sale, error } = await sb.from("sales").insert({ shop_id: PROFILE.shop_id, customer_id: POS_CUSTOMER?.id||null, created_by: PROFILE.id, total: grand, discount, paid: Math.min(paid,grand), due }).select("id").single();
-    if(error) throw error;
-    const { error: iErr } = await sb.from("sale_items").insert(CART.map(l=>({ sale_id: sale.id, product_id: l.p.id, qty: l.qty, unit_price: l.p.sell_price, subtotal: l.qty*l.p.sell_price })));
-    if(iErr) throw iErr;
-    toast(t('saleDone'));
-    CART = []; POS_CUSTOMER = null;
-    nav('/receipt/'+sale.id);
-  }catch(e){ toast(e.message||t('error'), true); }
+function invoiceReturnedTotal(inv){ return inv.returnedTotal || 0; }
+function statusBadge(i){
+  if(i.dueTransferredTo) return `<span class="badge partial">বকেয়া স্থানান্তরিত</span>`;
+  if(i.due <= 0) return `<span class="badge paid">পরিশোধিত</span>`;
+  if(i.paid > 0) return `<span class="badge partial">আংশিক বাকি</span>`;
+  return `<span class="badge due">বকেয়া</span>`;
 }
 
-/* ======================= RECEIPT ======================= */
-async function receiptView(saleId){
-  const { data: s } = await sb.from("sales").select("id,total,discount,paid,due,created_at,customers(name)").eq("id",saleId).single();
-  const { data: items } = await sb.from("sale_items").select("id,qty,unit_price,subtotal,products(name)").eq("sale_id",saleId);
-  if(!s) return `<p>${t('noData')}</p>`;
-  const sub = (items||[]).reduce((a,i)=>a+Number(i.subtotal),0);
-  return `
-  <div class="no-print flex gap-2 mb-3">
-    <button onclick="history.back()" class="px-3 py-2 border border-slate-300 rounded-lg text-sm">${t('back')}</button>
-    <button onclick="window.print()" class="px-3 py-2 bg-emerald-600 text-white rounded-lg text-sm">${t('print')}</button>
-  </div>
-  <div class="bg-white border border-slate-200 rounded-xl p-5 max-w-sm mx-auto text-sm">
-    <div class="text-center"><p class="font-bold text-lg">${SHOP?.name||""}</p><p class="text-xs text-slate-500">${SHOP?.address||""}</p><p class="font-semibold mt-2">${t('receipt')}</p></div>
-    <div class="flex justify-between text-xs text-slate-500 mt-3"><span>${t('billNo')}: ${s.id.slice(0,8).toUpperCase()}</span><span>${new Date(s.created_at).toLocaleString()}</span></div>
-    <p class="text-xs text-slate-500">${t('customer')}: ${s.customers?.name || t('walkIn')}</p>
-    <table class="w-full mt-2"><tbody class="divide-y divide-dashed divide-slate-200">
-      ${(items||[]).map(i=>`<tr><td class="py-1.5">${i.products?.name||''}<div class="text-xs text-slate-400 num">${i.qty} × ${fmt(i.unit_price)}</div></td><td class="text-right py-1.5 num">${fmt(i.subtotal)}</td></tr>`).join("")}
+/* ============ DASHBOARD ============ */
+let dashCardVisibility = Object.assign({ overview:true, period:true, recent:true, lowstock:true }, lsGet('shop_dash_visibility', {}));
+function applyDashCardVisibility(){
+  Object.keys(dashCardVisibility).forEach(key => {
+    const card = $('dashCard-' + key);
+    const cb = document.querySelector(`input[data-card="${key}"]`);
+    if(cb) cb.checked = dashCardVisibility[key];
+    if(card) card.classList.toggle('dash-hidden', !dashCardVisibility[key]);
+  });
+}
+document.querySelectorAll('.vis-toggle input[data-card]').forEach(cb => cb.addEventListener('change', ()=>{
+  dashCardVisibility[cb.dataset.card] = cb.checked; applyDashCardVisibility(); lsSet('shop_dash_visibility', dashCardVisibility);
+}));
+
+function renderDashboard(){
+  applyDashCardVisibility();
+  const totalSales = invoices.reduce((s,i)=> s + i.total, 0);
+  const totalDue = invoices.reduce((s,i)=> s + i.due, 0);
+  const lowStock = products.filter(p => p.stock <= p.reorder);
+  let html = `<div class="stat-card has-icon"><div class="icon">🧾</div><div class="label">টোটাল সেল</div><div class="value">${money(totalSales)}</div></div>`;
+  if(isOwner()){
+    const totalProfit = invoices.reduce((s,i)=> s + invoiceProfit(i), 0);
+    html += `<div class="stat-card success has-icon"><div class="icon">📈</div><div class="label">টোটাল প্রফিট</div><div class="value">${money(totalProfit)}</div></div>`;
+  }
+  html += `<div class="stat-card danger has-icon"><div class="icon">💳</div><div class="label">মোট বকেয়া</div><div class="value">${money(totalDue)}</div></div>
+    <div class="stat-card accent has-icon"><div class="icon">📦</div><div class="label">মোট পণ্য</div><div class="value">${products.length} টি</div></div>`;
+  $('dashStats').innerHTML = html;
+  renderDashPeriodStats();
+  renderDashInvoiceList();
+  $('dashLowStock').innerHTML = lowStock.length ? `
+    <table><thead><tr><th>পণ্য</th><th class="num">স্টক</th><th class="num">সীমা</th></tr></thead>
+    <tbody>${lowStock.map(p=>`<tr><td>${esc(p.name)}</td><td class="num">${p.stock} ${esc(p.unit)}</td><td class="num"><span class="badge low">কম স্টক</span></td></tr>`).join('')}</tbody></table>
+  ` : `<div class="empty muted" style="padding:20px 0;">সব পণ্যের স্টক পর্যাপ্ত আছে ✅</div>`;
+}
+function renderDashInvoiceList(){
+  const q = ($('dashInvSearch').value||'').trim().toLowerCase();
+  let list = invoices;
+  if(q) list = list.filter(i => i.customerName.toLowerCase().includes(q) || i.invoiceNo.toLowerCase().includes(q));
+  list = list.slice(0, 100);
+  $('dashRecent').innerHTML = list.length ? `
+    <table><thead><tr><th>ইনভয়েজ নং</th><th>কাস্টমার</th><th>তারিখ</th><th class="num">মোট</th><th>অবস্থা</th><th class="num">কার্যক্রম</th></tr></thead>
+    <tbody>${list.map(i=>`<tr>
+      <td>${esc(i.invoiceNo)}</td><td>${esc(i.customerName)}</td><td>${fmtDate(i.date)}</td>
+      <td class="num">${money(i.total)}</td><td>${statusBadge(i)}</td>
+      <td class="num"><button class="btn ghost sm" onclick="viewInvoice('${i.id}')">👁️ দেখুন</button></td></tr>`).join('')}</tbody></table>
+  ` : `<div class="empty"><div class="big">🧾</div>${q ? 'কোনো ইনভয়েজ পাওয়া যায়নি' : 'এখনো কোনো ইনভয়েজ তৈরি হয়নি'}</div>`;
+}
+$('dashInvSearch').addEventListener('input', renderDashInvoiceList);
+
+function invoicesForPeriod(){
+  const type = $('dashPeriodType').value;
+  if(type==='day'){ const d = $('dashPeriodDay').value; return d ? invoices.filter(i => i.date === d) : []; }
+  if(type==='month'){ const m = $('dashPeriodMonth').value; return m ? invoices.filter(i => i.date.slice(0,7) === m) : []; }
+  const y = $('dashPeriodYear').value; return y ? invoices.filter(i => i.date.slice(0,4) === String(y)) : [];
+}
+function renderDashPeriodStats(){
+  const list = invoicesForPeriod();
+  let html = `<div class="stat-card has-icon"><div class="icon">🗓️</div><div class="label">নির্বাচিত সময়ের বিক্রয়</div><div class="value">${money(list.reduce((s,i)=> s+i.total, 0))}</div></div>`;
+  if(isOwner()) html += `<div class="stat-card success has-icon"><div class="icon">📊</div><div class="label">নির্বাচিত সময়ের লাভ</div><div class="value">${money(list.reduce((s,i)=> s+invoiceProfit(i), 0))}</div></div>`;
+  $('dashPeriodStats').innerHTML = html;
+}
+$('dashPeriodType').addEventListener('change', ()=>{
+  const type = $('dashPeriodType').value;
+  $('dashPeriodDayWrap').style.display = type==='day' ? '' : 'none';
+  $('dashPeriodMonthWrap').style.display = type==='month' ? '' : 'none';
+  $('dashPeriodYearWrap').style.display = type==='year' ? '' : 'none';
+  renderDashPeriodStats();
+});
+['dashPeriodDay','dashPeriodMonth','dashPeriodYear'].forEach(id => $(id).addEventListener('input', renderDashPeriodStats));
+(function(){ const now = new Date();
+  $('dashPeriodDay').value = todayISO(); $('dashPeriodMonth').value = now.getFullYear()+'-'+pad2(now.getMonth()+1); $('dashPeriodYear').value = now.getFullYear(); })();
+
+/* ============ PRODUCTS ============ */
+let showBuyPrice = true;
+function renderProducts(){
+  const q = ($('productSearch').value||'').trim().toLowerCase();
+  const list = products.filter(p => p.name.toLowerCase().includes(q) || (p.category||'').toLowerCase().includes(q));
+  const owner = isOwner();
+  const buyCols = owner && showBuyPrice ? `<th class="num">ক্রয় মূল্য</th><th class="num">লাভ/একক</th>` : '';
+  $('productTableWrap').innerHTML = list.length ? `
+    <table><thead><tr>
+      <th>পণ্যের নাম</th><th>ক্যাটাগরি</th>${buyCols}<th class="num">বিক্রয় মূল্য</th>
+      <th class="num">স্টক</th>${owner ? '<th class="num">কার্যক্রম</th>' : ''}
+    </tr></thead><tbody>
+    ${list.map(p => {
+      const low = p.stock <= p.reorder;
+      const profit = p.sellPrice - (p.buyPrice||0);
+      const buyCells = owner && showBuyPrice ? `<td class="num">${money(p.buyPrice)}</td><td class="num" style="color:${profit>=0?'var(--success)':'var(--danger)'}">${money(profit)}</td>` : '';
+      return `<tr>
+        <td>${esc(p.name)}</td><td>${esc(p.category)||'-'}</td>${buyCells}
+        <td class="num">${money(p.sellPrice)}</td>
+        <td class="num">${p.stock} ${esc(p.unit)} ${low ? '<span class="badge low">কম</span>' : ''}</td>
+        ${owner ? `<td class="num"><button class="btn ghost sm" onclick="editProduct('${p.id}')">✏️</button> <button class="btn danger sm" onclick="deleteProduct('${p.id}')">🗑️</button></td>` : ''}
+      </tr>`;
+    }).join('')}
     </tbody></table>
-    <div class="num space-y-1 border-t border-slate-200 pt-2 mt-2">
-      <div class="flex justify-between"><span>${t('subtotal')}</span><span>${fmt(sub)}</span></div>
-      <div class="flex justify-between"><span>${t('discount')}</span><span>${fmt(s.discount)}</span></div>
-      <div class="flex justify-between font-bold"><span>${t('grandTotal')}</span><span>${fmt(s.total)}</span></div>
-      <div class="flex justify-between"><span>${t('paid')}</span><span>${fmt(s.paid)}</span></div>
-      <div class="flex justify-between"><span>${t('due')}</span><span>${fmt(s.due)}</span></div>
-    </div>
-    <p class="text-center text-xs text-slate-400 mt-3">${t('thankYou')}</p>
-  </div>`;
+  ` : `<div class="empty"><div class="big">📦</div>কোনো পণ্য পাওয়া যায়নি${owner ? '। নতুন পণ্য যোগ করুন।' : '।'}</div>`;
 }
-
-/* ======================= PRODUCTS ======================= */
-async function productsView(){
-  const owner = PROFILE.role === "owner";
-  const { data: list } = owner ? await sb.rpc("products_with_cost") : await sb.from("products").select("id,name,category,sell_price,stock_qty,low_stock_level,sku").order("name");
-  window.__PLIST = list||[];
-  return `
-  <div class="flex justify-between items-center mb-3">
-    <h1 class="text-lg font-bold">${t('products')}</h1>
-    ${owner?`<button onclick="openProductForm(null)" class="bg-emerald-600 text-white text-sm font-semibold px-3 py-2 rounded-lg">+ ${t('addProduct')}</button>`:""}
-  </div>
-  <input id="prod-q" oninput="renderProductList()" placeholder="${t('search')}" class="w-full px-3 py-2 rounded-lg border border-slate-300 mb-3"/>
-  <div id="prod-list"></div>
-  <div id="modal"></div>`;
-}
-function renderProductList(){
-  const q = (document.getElementById("prod-q")?.value||"").toLowerCase();
-  const owner = PROFILE.role === "owner";
-  const list = (window.__PLIST||[]).filter(p=>!q||p.name.toLowerCase().includes(q)||(p.sku||"").toLowerCase().includes(q)||(p.category||"").toLowerCase().includes(q));
-  document.getElementById("prod-list").innerHTML = list.length===0 ? `<p class="text-sm text-slate-400">${t('noData')}</p>` :
-    `<ul class="space-y-2">${list.map(p=>{
-      const low = Number(p.stock_qty)<=Number(p.low_stock_level);
-      return `<li class="bg-white border ${low?"border-red-200 bg-red-50":"border-slate-200"} rounded-xl p-3 flex items-center gap-3">
-        <div class="flex-1 min-w-0"><p class="font-medium truncate">${p.name}</p>
-          <p class="text-xs text-slate-400 num">${[p.category,p.sku].filter(Boolean).join(' · ')}</p>
-          <p class="num text-sm"><span class="font-semibold text-emerald-700">${fmt(p.sell_price)}</span>${owner && p.buy_price!==undefined?` <span class="text-xs text-slate-400">${t('buyPrice')}: ${fmt(p.buy_price)}</span>`:""}</p></div>
-        <div class="flex items-center gap-1">
-          <button onclick="adjustStock('${p.id}',-1)" class="w-7 h-7 border border-slate-300 rounded">−</button>
-          <span class="num w-8 text-center font-bold ${low?"text-red-600":""}">${Number(p.stock_qty)}</span>
-          <button onclick="adjustStock('${p.id}',1)" class="w-7 h-7 border border-slate-300 rounded">+</button>
-        </div>
-        ${owner?`<button onclick='openProductForm(${JSON.stringify(p).replace(/'/g,"&#39;")})' class="text-slate-400">✏️</button><button onclick="deleteProduct('${p.id}')" class="text-red-400">🗑️</button>`:""}
-      </li>`;
-    }).join("")}</ul>`;
-}
-async function adjustStock(id, dir){
-  const n = prompt(t('stockQty'), "1"); if(n===null) return;
-  const p = (window.__PLIST||[]).find(x=>x.id===id); if(!p) return;
-  const next = Math.max(0, Number(p.stock_qty) + dir*(Number(n)||0));
-  const { error } = await sb.from("products").update({ stock_qty: next }).eq("id", id);
-  if(error) return toast(error.message, true);
-  toast(t('stockUpdated')); render();
+$('productSearch').addEventListener('input', renderProducts);
+$('toggleBuyPrice').addEventListener('change', e => { showBuyPrice = e.target.checked; renderProducts(); });
+$('btnAddProduct').addEventListener('click', ()=>{
+  $('productModalTitle').textContent = 'নতুন পণ্য যোগ করুন';
+  ['prodId','prodName','prodBuy','prodSell','prodStock','prodCategory'].forEach(id => $(id).value = '');
+  $('prodUnit').value = 'পিস'; $('prodReorder').value = '5';
+  openModal('productModal');
+});
+function editProduct(id){
+  const p = products.find(x => x.id === id); if(!p) return;
+  $('productModalTitle').textContent = 'পণ্য সম্পাদনা করুন';
+  $('prodId').value = p.id; $('prodName').value = p.name; $('prodBuy').value = p.buyPrice ?? 0; $('prodSell').value = p.sellPrice;
+  $('prodStock').value = p.stock; $('prodUnit').value = p.unit || 'পিস'; $('prodCategory').value = p.category || ''; $('prodReorder').value = p.reorder;
+  openModal('productModal');
 }
 async function deleteProduct(id){
-  if(!confirm(t('confirmDelete'))) return;
-  const { error } = await sb.from("products").delete().eq("id", id);
-  if(error) return toast(error.message, true);
-  toast(t('productDeleted')); render();
+  if(!confirm('আপনি কি নিশ্চিতভাবে এই পণ্যটি মুছে ফেলতে চান? (আগের ইনভয়েজ অক্ষত থাকবে)')) return;
+  const { error } = await sb.from('products').delete().eq('id', id);
+  if(error){ showToast('⚠️ ' + errMsg(error)); return; }
+  await refreshData(true); renderProducts(); showToast('পণ্য মুছে ফেলা হয়েছে');
 }
-function openProductForm(p){
-  document.getElementById("modal").innerHTML = `
-  <div class="fixed inset-0 bg-black/40 flex items-center justify-center z-30 p-3">
-    <div class="bg-white rounded-xl p-5 w-full max-w-sm space-y-3">
-      <h2 class="font-bold">${p?t('editProduct'):t('addProduct')}</h2>
-      <form onsubmit="saveProduct(event,'${p?p.id:''}')" class="space-y-2">
-        <input required id="pf-name" placeholder="${t('productName')}" value="${p?.name||''}" class="w-full px-3 py-2 border border-slate-300 rounded-lg"/>
-        <input id="pf-cat" placeholder="${t('category')}" value="${p?.category||''}" class="w-full px-3 py-2 border border-slate-300 rounded-lg"/>
-        <input id="pf-sku" placeholder="${t('sku')}" value="${p?.sku||''}" class="w-full px-3 py-2 border border-slate-300 rounded-lg"/>
-        <div class="grid grid-cols-2 gap-2">
-          <input id="pf-buy" type="number" step="any" placeholder="${t('buyPrice')}" value="${p?.buy_price??''}" class="px-3 py-2 border border-slate-300 rounded-lg"/>
-          <input required id="pf-sell" type="number" step="any" placeholder="${t('sellPrice')}" value="${p?.sell_price??''}" class="px-3 py-2 border border-slate-300 rounded-lg"/>
-        </div>
-        <div class="grid grid-cols-2 gap-2">
-          <input id="pf-stock" type="number" step="any" placeholder="${t('stockQty')}" value="${p?.stock_qty??0}" class="px-3 py-2 border border-slate-300 rounded-lg"/>
-          <input id="pf-low" type="number" step="any" placeholder="${t('lowStockLevel')}" value="${p?.low_stock_level??5}" class="px-3 py-2 border border-slate-300 rounded-lg"/>
-        </div>
-        <div class="flex justify-end gap-2 pt-2">
-          <button type="button" onclick="document.getElementById('modal').innerHTML=''" class="px-3 py-2 border border-slate-300 rounded-lg text-sm">${t('cancel')}</button>
-          <button class="px-3 py-2 bg-emerald-600 text-white rounded-lg text-sm">${t('save')}</button>
-        </div>
-      </form>
-    </div>
-  </div>`;
-}
-async function saveProduct(e, id){
-  e.preventDefault();
-  const row = { name: document.getElementById("pf-name").value.trim(), category: document.getElementById("pf-cat").value.trim()||null,
-    sku: document.getElementById("pf-sku").value.trim()||null, buy_price: Number(document.getElementById("pf-buy").value)||0,
-    sell_price: Number(document.getElementById("pf-sell").value)||0, stock_qty: Number(document.getElementById("pf-stock").value)||0,
-    low_stock_level: Number(document.getElementById("pf-low").value)||0 };
-  const q = id ? sb.from("products").update(row).eq("id",id) : sb.from("products").insert({...row, shop_id: PROFILE.shop_id});
-  const { error } = await q;
-  if(error) return toast(error.message, true);
-  toast(t('productSaved')); document.getElementById("modal").innerHTML=""; render();
-}
+$('btnSaveProduct').addEventListener('click', async ()=>{
+  const name = $('prodName').value.trim();
+  const buy = Number($('prodBuy').value), sell = Number($('prodSell').value), stock = Number($('prodStock').value);
+  if(!name){ showToast('⚠️ পণ্যের নাম দিন'); return; }
+  if(isNaN(buy) || isNaN(sell) || isNaN(stock) || $('prodSell').value==='' ){ showToast('⚠️ সঠিক মূল্য ও স্টক দিন'); return; }
+  const row = {
+    name, buy_price: buy, sell_price: sell, stock_qty: stock,
+    unit: $('prodUnit').value.trim() || 'পিস', category: $('prodCategory').value.trim() || null,
+    low_stock_level: Number($('prodReorder').value) || 0
+  };
+  const id = $('prodId').value;
+  $('btnSaveProduct').disabled = true;
+  const { error } = id ? await sb.from('products').update(row).eq('id', id) : await sb.from('products').insert({ ...row, shop_id: PROFILE.shop_id });
+  $('btnSaveProduct').disabled = false;
+  if(error){ showToast('⚠️ ' + errMsg(error)); return; }
+  closeModal('productModal');
+  await refreshData(true); renderProducts();
+  showToast('✅ সংরক্ষণ সম্পন্ন হয়েছে');
+});
 
-/* ======================= CUSTOMERS ======================= */
-async function customersView(){
-  const { data } = await sb.from("customers").select("id,name,phone,address,due_amount").order("name");
-  window.__CLIST = data||[];
+/* ============ POS / NEW INVOICE ============ */
+function renderPOS(){ renderPOSProductList(); renderCart(); updatePrevDueNotice(); }
+function renderPOSProductList(){
+  const q = ($('posSearch').value||'').trim().toLowerCase();
+  const list = products.filter(p => p.name.toLowerCase().includes(q));
+  $('posProductList').innerHTML = list.length ? list.map(p => `
+    <div class="pick-item" onclick="addToCart('${p.id}')">
+      <div><div class="name">${esc(p.name)}</div><div class="meta">স্টক: ${p.stock} ${esc(p.unit)}</div></div>
+      <div class="price">${money(p.sellPrice)}</div>
+    </div>`).join('') : `<div class="empty muted">কোনো পণ্য পাওয়া যায়নি</div>`;
+}
+$('posSearch').addEventListener('input', renderPOSProductList);
+function addToCart(productId){
+  const p = products.find(x => x.id === productId); if(!p) return;
+  const ex = cart.find(c => c.productId === productId);
+  if(ex) ex.qty += 1; else cart.push({ productId:p.id, name:p.name, price:p.sellPrice, qty:1 });
+  renderCart();
+}
+function renderCart(){
+  $('cartItems').innerHTML = cart.length ? cart.map((c,idx) => `
+    <div class="cart-row">
+      <div class="cname">${esc(c.name)}<div class="muted">${money(c.price)} ×</div></div>
+      <input type="number" min="0.01" step="any" value="${c.qty}" onchange="updateQty(${idx}, this.value)">
+      <div class="num" style="width:70px;">${money(c.price * c.qty)}</div>
+      <button class="btn danger sm" onclick="removeFromCart(${idx})">✕</button>
+    </div>`).join('') : `<div class="empty muted" style="padding:20px 0;">কোনো পণ্য যোগ করা হয়নি</div>`;
+  recalcTotals();
+}
+function updateQty(idx, val){ cart[idx].qty = Math.max(0.01, Number(val) || 1); renderCart(); }
+function removeFromCart(idx){ cart.splice(idx, 1); renderCart(); }
+
+let currentPrevDue = 0, currentPrevDueInvoices = [];
+function findPreviousDueInvoices(name, phone){
+  name = (name||'').trim(); phone = (phone||'').trim();
+  if(!phone && !name) return [];
+  return invoices.filter(i => {
+    if(!(i.due > 0)) return false;
+    if(phone) return (i.customerPhone||'').trim() === phone;
+    return (i.customerName||'').trim().toLowerCase() === name.toLowerCase();
+  });
+}
+function updatePrevDueNotice(){
+  currentPrevDueInvoices = findPreviousDueInvoices($('custName').value, $('custPhone').value);
+  currentPrevDue = currentPrevDueInvoices.reduce((s,i)=> s + i.due, 0);
+  const box = $('prevDueNotice');
+  if(currentPrevDue > 0){
+    box.style.display = 'block';
+    box.innerHTML = `⚠️ এই কাস্টমারের আগের ${currentPrevDueInvoices.length} টি ইনভয়েজে মোট <b>${money(currentPrevDue)}</b> বকেয়া আছে — এই নতুন ইনভয়েজের সাথে যোগ হয়ে যাবে।`;
+  } else { box.style.display = 'none'; box.innerHTML = ''; }
+  recalcTotals();
+}
+$('custName').addEventListener('input', updatePrevDueNotice);
+$('custPhone').addEventListener('input', updatePrevDueNotice);
+let paidTouched = false;
+function recalcTotals(){
+  const subtotal = cart.reduce((s,c)=> s + c.price*c.qty, 0);
+  const discount = Number($('discountInput').value) || 0;
+  const currentTotal = Math.max(0, subtotal - discount);
+  const payable = currentTotal + currentPrevDue;
+  if(!paidTouched) $('paidInput').value = payable > 0 ? payable : 0;
+  const paid = Number($('paidInput').value) || 0;
+  $('cartSubtotal').textContent = money(subtotal);
+  $('currentTotalDisplay').value = money(currentTotal);
+  $('grandTotalDisplay').value = money(payable);
+  $('dueDisplayInput').value = money(Math.max(0, payable - paid));
+}
+$('discountInput').addEventListener('input', recalcTotals);
+$('paidInput').addEventListener('input', ()=>{ paidTouched = true; recalcTotals(); });
+
+$('btnGenerateInvoice').addEventListener('click', async ()=>{
+  if(creatingInvoice) return;
+  if(cart.length === 0){ showToast('⚠️ কার্টে কোনো পণ্য নেই'); return; }
+  const subtotal = cart.reduce((s,c)=> s + c.price*c.qty, 0);
+  const discount = Number($('discountInput').value) || 0;
+  const payable = Math.max(0, subtotal - discount) + currentPrevDue;
+  const paid = Number($('paidInput').value) || 0;
+  const custName = $('custName').value.trim();
+  if(paid < payable && !custName){ showToast('⚠️ বাকি রাখতে হলে কাস্টমারের নাম দিন, নয়তো Paid ঘরে সম্পূর্ণ টাকার পরিমাণ বসান'); return; }
+  creatingInvoice = true; $('btnGenerateInvoice').disabled = true;
+  try{
+    const { data, error } = await sb.rpc('create_invoice', {
+      p_items: cart.map(c => ({ product_id:c.productId, qty:c.qty })),
+      p_discount: discount, p_customer_name: custName, p_customer_phone: $('custPhone').value.trim(),
+      p_customer_address: $('custAddress').value.trim(), p_paid: paid, p_method: $('paymentMethodInput').value
+    });
+    if(error) throw error;
+    cart = [];
+    $('discountInput').value = 0; $('paidInput').value = 0; paidTouched = false;
+    ['custName','custPhone','custAddress'].forEach(id => $(id).value = '');
+    $('paymentMethodInput').value = 'ক্যাশ';
+    await refreshData(true);
+    renderPOS();
+    const inv = invoices.find(i => i.id === data);
+    showToast('✅ ইনভয়েজ তৈরি হয়েছে' + (inv ? ': ' + inv.invoiceNo : ''));
+    if(inv) viewInvoice(inv.id);
+  }catch(e){ showToast('⚠️ ' + errMsg(e)); }
+  finally{ creatingInvoice = false; $('btnGenerateInvoice').disabled = false; }
+});
+
+/* ============ INVOICE LIST ============ */
+function renderInvoices(){
+  const from = $('invFrom').value, to = $('invTo').value;
+  const q = ($('invSearch').value||'').trim().toLowerCase();
+  let list = invoices;
+  if(from) list = list.filter(i => i.date >= from);
+  if(to) list = list.filter(i => i.date <= to);
+  if(q) list = list.filter(i => i.customerName.toLowerCase().includes(q) || i.invoiceNo.toLowerCase().includes(q));
+  $('invoiceTableWrap').innerHTML = list.length ? `
+    <table><thead><tr>
+      <th>ইনভয়েজ নং</th><th>তারিখ</th><th>কাস্টমার</th><th class="num">মোট</th><th class="num">পরিশোধিত</th><th class="num">বাকি</th><th>অবস্থা</th><th class="num">দেখুন</th>
+    </tr></thead><tbody>
+    ${list.map(i => `<tr>
+      <td>${esc(i.invoiceNo)}</td><td>${fmtDate(i.date)}</td><td>${esc(i.customerName)}</td>
+      <td class="num">${money(i.total)}</td><td class="num">${money(i.paid)}</td>
+      <td class="num" style="color:${i.due>0?'var(--danger)':'inherit'}">${money(i.due)}</td>
+      <td>${statusBadge(i)}</td>
+      <td class="num"><button class="btn ghost sm" onclick="viewInvoice('${i.id}')">👁️ দেখুন</button></td></tr>`).join('')}
+    </tbody></table>
+  ` : `<div class="empty"><div class="big">🧾</div>কোনো ইনভয়েজ পাওয়া যায়নি</div>`;
+}
+['invFrom','invTo','invSearch'].forEach(id => $(id).addEventListener('input', renderInvoices));
+$('btnClearInvFilter').addEventListener('click', ()=>{ $('invFrom').value=''; $('invTo').value=''; $('invSearch').value=''; renderInvoices(); });
+
+/* ============ INVOICE VIEW / PRINT ============ */
+function invoiceHTML(i){
+  const shop = SHOP || {};
   return `
-  <div class="flex justify-between items-center mb-3">
-    <h1 class="text-lg font-bold">${t('customers')}</h1>
-    <button onclick="openCustomerForm(null)" class="bg-emerald-600 text-white text-sm font-semibold px-3 py-2 rounded-lg">+ ${t('addCustomer')}</button>
-  </div>
-  <input id="cust-q" oninput="renderCustList()" placeholder="${t('search')}" class="w-full px-3 py-2 rounded-lg border border-slate-300 mb-3"/>
-  <div id="cust-list"></div><div id="modal"></div>`;
-}
-function renderCustList(){
-  const q = (document.getElementById("cust-q")?.value||"").toLowerCase();
-  const list = (window.__CLIST||[]).filter(c=>!q||c.name.toLowerCase().includes(q)||(c.phone||"").includes(q));
-  document.getElementById("cust-list").innerHTML = list.length===0? `<p class="text-sm text-slate-400">${t('noData')}</p>` :
-   `<ul class="space-y-2">${list.map(c=>`
-    <li class="bg-white border border-slate-200 rounded-xl p-3 flex items-center gap-3">
-      <button onclick='openCustomerDetail(${JSON.stringify(c.id)})' class="flex-1 min-w-0 text-left"><p class="font-medium truncate">${c.name}</p><p class="text-xs text-slate-400">${c.phone||''}</p></button>
-      <span class="num font-bold ${Number(c.due_amount)>0?'text-red-600':'text-slate-400'}">${fmt(c.due_amount)}</span>
-      <button onclick='openCustomerForm(${JSON.stringify(c).replace(/'/g,"&#39;")})' class="text-slate-400">✏️</button>
-    </li>`).join("")}</ul>`;
-}
-function openCustomerForm(c){
-  document.getElementById("modal").innerHTML = `
-  <div class="fixed inset-0 bg-black/40 flex items-center justify-center z-30 p-3">
-    <div class="bg-white rounded-xl p-5 w-full max-w-sm space-y-3">
-      <h2 class="font-bold">${c?t('editCustomer'):t('addCustomer')}</h2>
-      <form onsubmit="saveCustomer(event,'${c?c.id:''}')" class="space-y-2">
-        <input required id="cf-name" placeholder="${t('name')}" value="${c?.name||''}" class="w-full px-3 py-2 border border-slate-300 rounded-lg"/>
-        <input id="cf-phone" placeholder="${t('phone')}" value="${c?.phone||''}" class="w-full px-3 py-2 border border-slate-300 rounded-lg"/>
-        <input id="cf-addr" placeholder="${t('address')}" value="${c?.address||''}" class="w-full px-3 py-2 border border-slate-300 rounded-lg"/>
-        <div class="flex justify-end gap-2 pt-2">
-          <button type="button" onclick="document.getElementById('modal').innerHTML=''" class="px-3 py-2 border border-slate-300 rounded-lg text-sm">${t('cancel')}</button>
-          <button class="px-3 py-2 bg-emerald-600 text-white rounded-lg text-sm">${t('save')}</button>
-        </div>
-      </form>
+  <div class="inv-doc">
+    <div class="inv-head">
+      <div class="shop-name">${esc(shop.name) || 'দোকান হিসাব'}</div>
+      <div class="shop-meta">${esc(shop.address)||''}${shop.address && shop.phone ? ' &nbsp;|&nbsp; ' : ''}${shop.phone ? '📞 ' + esc(shop.phone) : ''}</div>
     </div>
-  </div>`;
-}
-async function saveCustomer(e,id){
-  e.preventDefault();
-  const row = { name: document.getElementById("cf-name").value.trim(), phone: document.getElementById("cf-phone").value.trim()||null, address: document.getElementById("cf-addr").value.trim()||null };
-  const q = id ? sb.from("customers").update(row).eq("id",id) : sb.from("customers").insert({...row, shop_id: PROFILE.shop_id});
-  const { error } = await q;
-  if(error) return toast(error.message, true);
-  toast(t('customerSaved')); document.getElementById("modal").innerHTML=""; render();
-}
-async function openCustomerDetail(id){
-  const c = (window.__CLIST||[]).find(x=>x.id===id); if(!c) return;
-  const { data: pays } = await sb.from("due_payments").select("id,amount,created_at").eq("customer_id",id).order("created_at",{ascending:false});
-  document.getElementById("modal").innerHTML = `
-  <div class="fixed inset-0 bg-black/40 flex items-center justify-center z-30 p-3">
-    <div class="bg-white rounded-xl p-5 w-full max-w-sm space-y-3 max-h-[85vh] overflow-auto">
-      <h2 class="font-bold">${c.name}</h2>
-      <p class="text-xs text-slate-500">${[c.phone,c.address].filter(Boolean).join(' · ')}</p>
-      <div class="bg-slate-100 rounded-lg p-3"><p class="text-xs">${t('dueBalance')}</p><p class="num text-2xl font-bold text-red-600">${fmt(c.due_amount)}</p></div>
-      <form onsubmit="collectDue(event,'${id}')" class="flex gap-2">
-        <input required id="dp-amt" type="number" step="any" min="0" placeholder="${t('amount')}" class="flex-1 px-3 py-2 border border-slate-300 rounded-lg"/>
-        <button class="px-3 py-2 bg-emerald-600 text-white rounded-lg text-sm">${t('collectDue')}</button>
-      </form>
-      <div><h3 class="text-sm font-semibold mb-1">${t('paymentHistory')}</h3>
-        ${(pays||[]).length===0?`<p class="text-sm text-slate-400">${t('noData')}</p>`:`<ul class="text-sm divide-y divide-slate-100">${pays.map(p=>`<li class="flex justify-between py-1.5"><span class="text-slate-400">${new Date(p.created_at).toLocaleString()}</span><span class="num font-medium">${fmt(p.amount)}</span></li>`).join("")}</ul>`}
+    <div class="inv-title-bar">
+      <div class="tag">বিক্রয় রশিদ / ইনভয়েজ</div>
+      <div class="meta-right">
+        <span class="lbl">ইনভয়েজ নং:</span> <span class="val">${esc(i.invoiceNo)}</span>
+        &nbsp;&nbsp;|&nbsp;&nbsp;
+        <span class="lbl">তারিখ:</span> <span class="val">${fmtDate(i.date)}</span>
       </div>
-      <button onclick="document.getElementById('modal').innerHTML=''" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">${t('back')}</button>
+    </div>
+    <div class="inv-parties">
+      <div class="box">
+        <div class="t">ক্রেতার বিস্তারিত ঠিকানা</div>
+        <div class="cust-name">${esc(i.customerName)}</div>
+        ${i.customerPhone ? `<div class="cust-line">📞 ${esc(i.customerPhone)}</div>` : ''}
+        ${i.customerAddress ? `<div class="cust-line">🏠 ${esc(i.customerAddress)}</div>` : ''}
+      </div>
+      <div class="box status-box">
+        <div class="t">পেমেন্ট অবস্থা</div>
+        ${statusBadge(i)}
+        ${i.paymentMethod ? `<div class="cust-line" style="margin-top:6px;">💳 মাধ্যম: ${esc(i.paymentMethod)}</div>` : ''}
+        ${i.dueTransferredTo ? `<div class="cust-line" style="margin-top:6px; color:var(--accent-dark);">বকেয়া ইনভয়েজ #${esc(i.dueTransferredTo)} এ যোগ হয়েছে</div>` : ''}
+      </div>
+    </div>
+    <table class="inv-table">
+      <thead><tr><th>পণ্য</th><th class="num">একক মূল্য</th><th class="num">পরিমাণ</th><th class="num">মোট</th></tr></thead>
+      <tbody>${i.items.map(it => `<tr><td>${esc(it.name)}</td><td class="num">${money(it.price)}</td><td class="num">${it.qty}</td><td class="num">${money(it.price * it.qty)}</td></tr>`).join('')}</tbody>
+    </table>
+    <div class="inv-summary">
+      <div class="row"><span>উপমোট</span><span>${money(i.subtotal)}</span></div>
+      <div class="row"><span>ডিসকাউন্ট</span><span>- ${money(i.discount)}</span></div>
+      <div class="row"><span>চলতি বিলের মোট</span><span>${money(i.total)}</span></div>
+      ${i.previousDue > 0 ? `<div class="row" style="color:var(--accent-dark); font-weight:600;"><span>পূর্বের বকেয়া</span><span>+ ${money(i.previousDue)}</span></div>` : ''}
+      <div class="row grand"><span>সর্বমোট প্রদেয়</span><span>${money(i.payable)}</span></div>
+      <div class="row"><span>পরিশোধিত</span><span>${money(i.paid)}</span></div>
+      ${ (i.returnedTotal||0) > 0 ? `<div class="row" style="color:var(--accent-dark); font-weight:600;"><span>ফেরত (রিটার্ন)</span><span>- ${money(i.returnedTotal)}</span></div>` : '' }
+      <div class="row due"><span>বাকি</span><span>${money(i.due)}</span></div>
+    </div>
+    ${ (i.returns && i.returns.length) ? `
+    <div class="inv-note">
+      <div class="note-box" style="border-color:var(--accent-dark); color:#5a4008;">
+        <div class="t">পণ্য ফেরতের বিবরণ</div>
+        ${i.returns.map(r => `${fmtDate(new Date(r.createdAt).toISOString().slice(0,10))}: ${r.items.map(it=>esc(it.name)+' × '+it.qty).join(', ')} — ${money(r.refundAmount)}`).join('<br>')}
+      </div>
+    </div>` : '' }
+    <div class="inv-note">
+      <div class="inv-foot">
+        <div class="thanks">আমাদের সাথে কেনাকাটা করার জন্য আপনাকে আন্তরিক ধন্যবাদ।</div>
+        <div class="sign"><div class="line">গ্রহীতার স্বাক্ষর</div></div>
+      </div>
     </div>
   </div>`;
 }
-async function collectDue(e,customerId){
-  e.preventDefault();
-  const amount = Number(document.getElementById("dp-amt").value);
-  if(!(amount>0)) return;
-  const { error } = await sb.from("due_payments").insert({ shop_id: PROFILE.shop_id, customer_id: customerId, amount, created_by: PROFILE.id });
-  if(error) return toast(error.message, true);
-  toast(t('duePaid')); document.getElementById("modal").innerHTML=""; render();
+function viewInvoice(id){
+  const i = invoices.find(x => x.id === id); if(!i) return;
+  $('invoicePreviewBody').innerHTML = invoiceHTML(i);
+  $('invoicePreviewBody').dataset.invId = id;
+  const canReturn = i.items.some(it => (it.qty - (it.returnedQty||0)) > 0);
+  $('btnReturnInvoice').style.display = canReturn ? '' : 'none';
+  openModal('invoiceViewModal');
+}
+$('btnPrintInvoice').addEventListener('click', ()=>{
+  const i = invoices.find(x => x.id === $('invoicePreviewBody').dataset.invId); if(!i) return;
+  $('print-area').innerHTML = invoiceHTML(i);
+  window.print();
+});
+$('btnReturnInvoice').addEventListener('click', ()=>{
+  const id = $('invoicePreviewBody').dataset.invId;
+  const i = invoices.find(x => x.id === id); if(!i) return;
+  closeModal('invoiceViewModal');
+  openReturnModal(i);
+});
+
+/* ============ RETURNS ============ */
+function openReturnModal(inv){
+  const rows = inv.items.filter(it => (it.qty - (it.returnedQty||0)) > 0);
+  openDyn(`
+    <div class="modal-head"><h3>↩️ পণ্য ফেরত — ${esc(inv.invoiceNo)}</h3><button class="close-x" onclick="closeDyn()">✕</button></div>
+    <div class="muted" style="margin-bottom:10px;">যত পরিমাণ ফেরত নিচ্ছেন তা লিখুন, বাকিটা ০ রেখে দিন।</div>
+    <table><thead><tr><th>পণ্য</th><th class="num">বিক্রিত</th><th class="num">ফেরতযোগ্য</th><th class="num">ফেরত পরিমাণ</th></tr></thead>
+    <tbody>${rows.map(it => {
+      const avail = it.qty - (it.returnedQty||0);
+      return `<tr>
+        <td>${esc(it.name)}<div class="muted">${money(it.price)}/একক</div></td>
+        <td class="num">${it.qty}</td>
+        <td class="num">${avail}</td>
+        <td class="num"><input type="number" min="0" max="${avail}" step="any" value="0" style="width:80px;" data-sid="${it.id}" class="ret-qty-input"></td>
+      </tr>`;
+    }).join('')}</tbody></table>
+    <div class="mt12"></div>
+    <label>কারণ (ঐচ্ছিক)</label><input id="ret-reason" placeholder="যেমন: সাইজ মিলেনি, ত্রুটিপূর্ণ পণ্য">
+    <div class="login-error" id="ret-err" style="margin-top:12px;"></div>
+    <button class="btn accent w100 mt16" style="justify-content:center;" onclick="submitReturn('${inv.id}', this)">ফেরত নিশ্চিত করুন</button>`);
+}
+async function submitReturn(saleId, btn){
+  const err = $('ret-err'); err.style.display = 'none';
+  const items = [];
+  document.querySelectorAll('.ret-qty-input').forEach(inp => {
+    const qty = Number(inp.value) || 0;
+    if(qty > 0) items.push({ sale_item_id: inp.dataset.sid, qty });
+  });
+  if(items.length === 0){ err.textContent = 'অন্তত একটি পণ্যের পরিমাণ দিন'; err.style.display = 'block'; return; }
+  btn.disabled = true;
+  try{
+    const { data, error } = await sb.rpc('process_return', { p_sale_id: saleId, p_items: items, p_reason: $('ret-reason').value.trim() });
+    if(error) throw error;
+    const r = data && data[0];
+    closeDyn();
+    await refreshData(true);
+    renderView(currentViewName);
+    let msg = '✅ ফেরত সম্পন্ন হয়েছে — মোট ' + money(r ? r.refund_amount : 0);
+    if(r && r.cash_refund > 0) msg += ' — গ্রাহককে ক্যাশ ফেরত দিন: ' + money(r.cash_refund);
+    showToast(msg);
+    const inv = invoices.find(x => x.id === saleId);
+    if(inv) viewInvoice(inv.id);
+  }catch(e){ err.textContent = errMsg(e); err.style.display = 'block'; }
+  btn.disabled = false;
 }
 
-/* ======================= SALES HISTORY ======================= */
-async function salesView(){
-  const today = ymd(new Date());
-  return `
-  <h1 class="text-lg font-bold mb-3">${t('sales')}</h1>
-  <div class="bg-white border border-slate-200 rounded-xl p-3 grid grid-cols-2 gap-3 mb-3">
-    <div><label class="text-xs text-slate-500">${t('from')}</label><input id="s-from" type="date" value="${today}" onchange="renderSalesList()" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg"/></div>
-    <div><label class="text-xs text-slate-500">${t('to')}</label><input id="s-to" type="date" value="${today}" onchange="renderSalesList()" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg"/></div>
-  </div>
-  <div id="sales-summary" class="text-sm text-slate-500 mb-2 num"></div>
-  <div id="sales-list"></div>`;
+/* ============ DUES ============ */
+let dueGroups = {}, openDueDetailKey = null;
+function computeDueGroups(){
+  const groups = {};
+  invoices.filter(i => i.due > 0).forEach(i => {
+    const key = (i.customerPhone||'') + '|' + i.customerName;
+    if(!groups[key]) groups[key] = { key, name:i.customerName, phone:i.customerPhone, invoices:[], total:0 };
+    groups[key].invoices.push(i); groups[key].total += i.due;
+  });
+  Object.values(groups).forEach(g => g.invoices.sort((a,b)=> a.createdAt - b.createdAt));
+  return groups;
 }
-async function renderSalesList(){
-  const from = document.getElementById("s-from").value, to = document.getElementById("s-to").value;
-  const { start, end } = rangeISO(from,to);
-  const { data } = await sb.from("sales").select("id,total,paid,due,created_at,customers(name)").gte("created_at",start).lt("created_at",end).order("created_at",{ascending:false});
-  const list = data||[];
-  const sum = list.reduce((a,s)=>a+Number(s.total),0);
-  document.getElementById("sales-summary").textContent = `${t('billCount')}: ${list.length} · ${t('total')}: ${fmt(sum)}`;
-  document.getElementById("sales-list").innerHTML = list.length===0? `<p class="text-sm text-slate-400">${t('noSales')}</p>` :
-   `<ul class="space-y-2">${list.map(s=>`
-    <li><button onclick="nav('/receipt/${s.id}')" class="w-full bg-white border border-slate-200 rounded-xl p-3 flex items-center gap-3 text-left">
-      <div class="flex-1 min-w-0"><p class="num text-sm font-medium">#${s.id.slice(0,8).toUpperCase()}</p><p class="text-xs text-slate-400">${s.customers?.name||t('walkIn')} · ${new Date(s.created_at).toLocaleString()}</p></div>
-      <div class="text-right num"><p class="font-bold">${fmt(s.total)}</p>${Number(s.due)>0?`<p class="text-xs text-red-600">${t('due')}: ${fmt(s.due)}</p>`:""}</div>
-    </button></li>`).join("")}</ul>`;
+function renderDues(){
+  const totalDue = invoices.reduce((s,i)=> s + i.due, 0);
+  dueGroups = computeDueGroups();
+  let groupList = Object.values(dueGroups).sort((a,b)=> b.total - a.total);
+  $('dueStats').innerHTML = `
+    <div class="stat-card danger has-icon"><div class="icon">💳</div><div class="label">মোট বকেয়া</div><div class="value">${money(totalDue)}</div></div>
+    <div class="stat-card accent has-icon"><div class="icon">👥</div><div class="label">বকেয়া কাস্টমার সংখ্যা</div><div class="value">${groupList.length} জন</div></div>`;
+  const q = ($('dueSearch').value||'').trim().toLowerCase();
+  if(q) groupList = groupList.filter(g => g.name.toLowerCase().includes(q) || (g.phone||'').toLowerCase().includes(q));
+  if(!groupList.length){ $('dueCustomerWrap').innerHTML = `<div class="empty"><div class="big">🎉</div>কোনো বকেয়া নেই! ডিউ শিট খালি আছে।</div>`; return; }
+  $('dueCustomerWrap').innerHTML = `
+    <table class="due-table"><thead><tr>
+      <th>কাস্টমার</th><th>মোবাইল</th><th class="num">ইনভয়েজ সংখ্যা</th><th class="num">মোট বকেয়া</th><th class="num">কার্যক্রম</th>
+    </tr></thead><tbody>
+    ${groupList.map(g => `
+      <tr class="due-row" onclick="toggleDueDetail('${jsAttr(g.key)}')">
+        <td><strong>${esc(g.name)}</strong> <span class="chevron ${openDueDetailKey===g.key?'open':''}">▶</span></td>
+        <td>${esc(g.phone)||'-'}</td>
+        <td class="num">${g.invoices.length} টি</td>
+        <td class="num due-amt">${money(g.total)}</td>
+        <td class="num" onclick="event.stopPropagation()"><button class="btn accent sm" onclick="openCustomerPayment('${jsAttr(g.key)}')">💰 পরিশোধ নিন</button></td>
+      </tr>
+      <tr class="due-detail-row" style="display:${openDueDetailKey===g.key?'table-row':'none'}">
+        <td colspan="5"><div class="due-detail-inner">
+          <table><thead><tr><th>ইনভয়েজ নং</th><th>তারিখ</th><th class="num">মোট</th><th class="num">পরিশোধিত</th><th class="num">বাকি</th><th class="num">কার্যক্রম</th></tr></thead>
+          <tbody>${g.invoices.map(i => `<tr>
+            <td>${esc(i.invoiceNo)}</td><td>${fmtDate(i.date)}</td><td class="num">${money(i.total)}</td>
+            <td class="num">${money(i.paid)}</td><td class="num" style="color:var(--danger)">${money(i.due)}</td>
+            <td class="num"><button class="btn ghost sm" onclick="event.stopPropagation(); openPayment('${i.id}')">এই ইনভয়েজ পরিশোধ</button>
+            <button class="btn ghost sm" onclick="event.stopPropagation(); viewInvoice('${i.id}')">👁️</button></td></tr>`).join('')}</tbody></table>
+        </div></td>
+      </tr>`).join('')}
+    </tbody></table>`;
+}
+$('dueSearch').addEventListener('input', renderDues);
+function toggleDueDetail(key){ openDueDetailKey = openDueDetailKey === key ? null : key; renderDues(); }
+function openPayment(invId){
+  const i = invoices.find(x => x.id === invId); if(!i) return;
+  $('paymentInvoiceId').value = invId; $('paymentCustomerKey').value = '';
+  $('paymentInfo').textContent = `${i.customerName} — ইনভয়েজ ${i.invoiceNo} — বর্তমান বাকি: ${money(i.due)}`;
+  $('paymentHint').textContent = 'এই পেমেন্ট শুধু এই একটি ইনভয়েজে জমা হবে।';
+  $('paymentAmount').value = i.due; $('paymentMethodSelect').value = 'ক্যাশ';
+  openModal('paymentModal');
+}
+function openCustomerPayment(key){
+  const g = dueGroups[key]; if(!g) return;
+  $('paymentInvoiceId').value = ''; $('paymentCustomerKey').value = key;
+  $('paymentInfo').textContent = `${g.name}${g.phone ? ' · ' + g.phone : ''} — মোট বকেয়া: ${money(g.total)} (${g.invoices.length} টি ইনভয়েজ)`;
+  $('paymentHint').textContent = 'টাকা পুরনো ইনভয়েজ থেকে শুরু করে স্বয়ংক্রিয়ভাবে সমন্বয় হবে।';
+  $('paymentAmount').value = g.total; $('paymentMethodSelect').value = 'ক্যাশ';
+  openModal('paymentModal');
+}
+$('btnConfirmPayment').addEventListener('click', async ()=>{
+  const invId = $('paymentInvoiceId').value, custKey = $('paymentCustomerKey').value;
+  const amt = Number($('paymentAmount').value);
+  if(!amt || amt <= 0){ showToast('⚠️ সঠিক পরিমাণ দিন'); return; }
+  const g = custKey ? dueGroups[custKey] : null;
+  if(custKey && !g) return;
+  $('btnConfirmPayment').disabled = true;
+  const { error } = await sb.rpc('receive_payment', {
+    p_invoice_id: invId || null, p_name: g ? g.name : null, p_phone: g ? (g.phone || '') : null,
+    p_amount: amt, p_method: $('paymentMethodSelect').value
+  });
+  $('btnConfirmPayment').disabled = false;
+  if(error){ showToast('⚠️ ' + errMsg(error)); return; }
+  closeModal('paymentModal'); openDueDetailKey = null;
+  await refreshData(true); renderDues();
+  showToast('✅ পেমেন্ট নেওয়া হয়েছে — সব জায়গায় হিসাব অটো আপডেট হয়েছে');
+});
+
+/* ============ REPORTS (owner only) ============ */
+let reportType = 'day';
+document.querySelectorAll('.pill-tabs button').forEach(b => b.addEventListener('click', ()=>{
+  document.querySelectorAll('.pill-tabs button').forEach(x => x.classList.remove('active'));
+  b.classList.add('active'); reportType = b.dataset.rtype;
+  $('repDayWrap').style.display = reportType === 'day' ? 'block' : 'none';
+  $('repMonthWrap').style.display = reportType === 'month' ? 'block' : 'none';
+  renderReports();
+}));
+$('repDate').addEventListener('input', renderReports);
+$('repMonth').addEventListener('input', renderReports);
+function renderReports(){
+  if(!isOwner()) return;
+  $('repDate').value = $('repDate').value || todayISO();
+  $('repMonth').value = $('repMonth').value || todayISO().slice(0,7);
+  const list = reportType === 'day'
+    ? invoices.filter(i => i.date === $('repDate').value)
+    : invoices.filter(i => i.date.slice(0,7) === $('repMonth').value);
+  const totalSales = list.reduce((s,i)=> s + i.total, 0);
+  const totalCost = list.reduce((s,i)=> s + i.items.reduce((a,it)=> a + (it.cost||0), 0), 0);
+  const totalProfit = list.reduce((s,i)=> s + invoiceProfit(i), 0);
+  const totalDue = list.reduce((s,i)=> s + i.due, 0);
+  const periodKey = reportType === 'day' ? $('repDate').value : $('repMonth').value;
+  const totalReturns = invoices.flatMap(i => i.returns||[]).filter(r => {
+    const d = new Date(r.createdAt).toISOString().slice(0,10);
+    return reportType === 'day' ? d === periodKey : d.slice(0,7) === periodKey;
+  }).reduce((s,r)=> s + r.refundAmount, 0);
+  $('reportStats').innerHTML = `
+    <div class="stat-card has-icon"><div class="icon">🧾</div><div class="label">মোট বিক্রয়</div><div class="value">${money(totalSales)}</div></div>
+    <div class="stat-card has-icon"><div class="icon">🛒</div><div class="label">মোট ক্রয় খরচ</div><div class="value">${money(totalCost)}</div></div>
+    <div class="stat-card has-icon ${totalProfit>=0?'success':'danger'}"><div class="icon">${totalProfit>=0?'📈':'📉'}</div><div class="label">${totalProfit>=0?'মোট লাভ':'মোট ক্ষতি'}</div><div class="value">${money(Math.abs(totalProfit))}</div></div>
+    <div class="stat-card danger has-icon"><div class="icon">💳</div><div class="label">মোট বাকি</div><div class="value">${money(totalDue)}</div></div>
+    <div class="stat-card has-icon accent"><div class="icon">↩️</div><div class="label">মোট ফেরত (রিটার্ন)</div><div class="value">${money(totalReturns)}</div></div>`;
+
+  const agg = {};
+  list.forEach(i => i.items.forEach(it => {
+    if(!agg[it.name]) agg[it.name] = { qty:0, revenue:0, profit:0 };
+    agg[it.name].qty += it.qty; agg[it.name].revenue += it.price*it.qty; agg[it.name].profit += it.price*it.qty - (it.cost||0);
+  }));
+  const prodList = Object.entries(agg).sort((a,b)=> b[1].revenue - a[1].revenue);
+  const maxRev = Math.max(1, ...prodList.map(p => p[1].revenue));
+  $('reportProductList').innerHTML = prodList.length ? `
+    <table><thead><tr><th>পণ্য</th><th class="num">পরিমাণ</th><th class="num">বিক্রয়</th><th class="num">লাভ</th><th class="num">অংশ</th></tr></thead>
+    <tbody>${prodList.map(([name,d]) => `<tr><td>${esc(name)}</td><td class="num">${d.qty}</td><td class="num">${money(d.revenue)}</td>
+      <td class="num" style="color:${d.profit>=0?'var(--success)':'var(--danger)'}">${money(d.profit)}</td>
+      <td class="num"><div class="bar-wrap" style="width:100px;"><div class="bar-fill" style="width:${(d.revenue/maxRev*100).toFixed(0)}%"></div></div></td></tr>`).join('')}</tbody></table>
+  ` : `<div class="empty muted" style="padding:20px 0;">এই সময়ে কোনো বিক্রয় হয়নি</div>`;
+
+  $('reportInvoiceList').innerHTML = list.length ? `
+    <table><thead><tr><th>ইনভয়েজ নং</th><th>তারিখ</th><th>কাস্টমার</th><th class="num">মোট</th><th class="num">লাভ</th><th class="num">দেখুন</th></tr></thead>
+    <tbody>${list.map(i => `<tr><td>${esc(i.invoiceNo)}</td><td>${fmtDate(i.date)}</td><td>${esc(i.customerName)}</td>
+      <td class="num">${money(i.total)}</td><td class="num" style="color:var(--success)">${money(invoiceProfit(i))}</td>
+      <td class="num"><button class="btn ghost sm" onclick="viewInvoice('${i.id}')">👁️</button></td></tr>`).join('')}</tbody></table>
+  ` : `<div class="empty muted" style="padding:20px 0;">কোনো ইনভয়েজ নেই</div>`;
 }
 
-/* ======================= REPORTS ======================= */
-async function reportsView(){
-  if(PROFILE.role !== "owner") return `<p class="bg-white rounded-xl p-5 text-sm">${t('noAccess')}</p>`;
-  const now = new Date();
-  const from0 = ymd(new Date(now.getFullYear(),now.getMonth(),1)), to0 = ymd(now);
-  setTimeout(()=>renderReport(),0);
-  return `
-  <h1 class="text-lg font-bold mb-3">${t('profitLoss')}</h1>
-  <div class="bg-white border border-slate-200 rounded-xl p-3 grid grid-cols-2 gap-3 mb-3">
-    <div><label class="text-xs text-slate-500">${t('from')}</label><input id="r-from" type="date" value="${from0}" onchange="renderReport()" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg"/></div>
-    <div><label class="text-xs text-slate-500">${t('to')}</label><input id="r-to" type="date" value="${to0}" onchange="renderReport()" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg"/></div>
-  </div>
-  <div id="report-grid" class="grid grid-cols-2 gap-3"></div>`;
-}
-async function renderReport(){
-  const from = document.getElementById("r-from").value, to = document.getElementById("r-to").value;
-  const { start, end } = rangeISO(from,to);
-  const { data } = await sb.rpc("profit_report", { _from: start, _to: end });
-  const r = (data && data[0]) || {};
-  const profit = Number(r.profit||0);
-  const stat = (l,v,cls="") => `<div class="bg-white border border-slate-200 rounded-xl p-4"><p class="text-xs text-slate-500">${l}</p><p class="num text-xl font-bold ${cls}">${v}</p></div>`;
-  document.getElementById("report-grid").innerHTML =
-    stat(t('total'), fmt(r.total_sales||0)) + stat(t('totalCost'), fmt(r.total_cost||0)) +
-    stat(profit>=0?t('profit'):t('loss'), fmt(Math.abs(profit)), profit>=0?"text-emerald-700":"text-red-600") +
-    stat(t('billCount'), String(r.sale_count||0)) + stat(t('totalDiscount'), fmt(r.total_discount||0));
-}
-
-/* ======================= STAFF ======================= */
-async function staffView(){
-  if(PROFILE.role !== "owner") return `<p class="bg-white rounded-xl p-5 text-sm">${t('noAccess')}</p>`;
-  const { data } = await sb.from("profiles").select("id,name,is_active").eq("shop_id",PROFILE.shop_id).eq("role","employee").order("name");
-  window.__STAFF = data||[];
-  return `
-  <div class="flex justify-between items-center mb-3"><h1 class="text-lg font-bold">${t('staff')}</h1>
-    <button onclick="openStaffForm()" class="bg-emerald-600 text-white text-sm font-semibold px-3 py-2 rounded-lg">+ ${t('addEmployee')}</button></div>
-  <ul class="space-y-2">${(window.__STAFF||[]).map(s=>`
-    <li class="bg-white border border-slate-200 rounded-xl p-3 flex items-center justify-between">
-      <div><p class="font-medium">${s.name}</p><p class="text-xs text-slate-400">${s.is_active?t('active'):t('inactive')}</p></div>
-      <button onclick="toggleStaff('${s.id}',${!s.is_active})" class="text-xs px-2 py-1 border border-slate-300 rounded-full">${s.is_active?t('inactive'):t('active')}</button>
-    </li>`).join("") || `<p class="text-sm text-slate-400">${t('noData')}</p>`}</ul>
-  <div id="modal"></div>`;
+/* ============ STAFF (owner) ============ */
+async function renderStaff(){
+  const { data, error } = await sb.from('profiles').select('id,name,is_active').eq('shop_id', PROFILE.shop_id).eq('role','employee').order('name');
+  if(error){ $('staffTableWrap').innerHTML = `<div class="empty muted">${esc(errMsg(error))}</div>`; return; }
+  $('staffTableWrap').innerHTML = (data||[]).length ? `
+    <table><thead><tr><th>নাম</th><th>অবস্থা</th><th class="num">কার্যক্রম</th></tr></thead>
+    <tbody>${data.map(s => `<tr><td>${esc(s.name)}</td>
+      <td><span class="badge ${s.is_active?'paid':'off'}">${s.is_active?'সক্রিয়':'নিষ্ক্রিয়'}</span></td>
+      <td class="num"><button class="btn ghost sm" onclick="toggleStaff('${s.id}', ${!s.is_active})">${s.is_active?'নিষ্ক্রিয় করুন':'সক্রিয় করুন'}</button></td></tr>`).join('')}</tbody></table>
+  ` : `<div class="empty"><div class="big">👔</div>এখনো কোনো কর্মচারী নেই</div>`;
 }
 async function toggleStaff(id, val){
-  const { error } = await sb.from("profiles").update({ is_active: val }).eq("id", id);
-  if(error) return toast(error.message, true);
-  render();
+  const { error } = await sb.from('profiles').update({ is_active: val }).eq('id', id);
+  if(error){ showToast('⚠️ ' + errMsg(error)); return; }
+  renderStaff();
 }
-function openStaffForm(){
-  document.getElementById("modal").innerHTML = `
-  <div class="fixed inset-0 bg-black/40 flex items-center justify-center z-30 p-3">
-    <div class="bg-white rounded-xl p-5 w-full max-w-sm space-y-3">
-      <h2 class="font-bold">${t('addEmployee')}</h2>
-      <form onsubmit="submitStaff(event)" class="space-y-2">
-        <input required id="ef-name" placeholder="${t('name')}" class="w-full px-3 py-2 border border-slate-300 rounded-lg"/>
-        <input required type="email" id="ef-email" placeholder="${t('email')}" class="w-full px-3 py-2 border border-slate-300 rounded-lg"/>
-        <input required minlength="6" type="password" id="ef-pass" placeholder="${t('password')}" class="w-full px-3 py-2 border border-slate-300 rounded-lg"/>
-        <div class="flex justify-end gap-2 pt-2">
-          <button type="button" onclick="document.getElementById('modal').innerHTML=''" class="px-3 py-2 border border-slate-300 rounded-lg text-sm">${t('cancel')}</button>
-          <button class="px-3 py-2 bg-emerald-600 text-white rounded-lg text-sm">${t('save')}</button>
-        </div>
-      </form>
-    </div>
-  </div>`;
-}
-async function submitStaff(e){
-  e.preventDefault();
+$('btnAddStaff').addEventListener('click', ()=>{
+  openDyn(`
+    <div class="modal-head"><h3>কর্মচারী যোগ করুন</h3><button class="close-x" onclick="closeDyn()">✕</button></div>
+    <label>নাম</label><input id="ef-name">
+    <div class="mt12"></div><label>ইমেইল (লগইনের জন্য)</label><input id="ef-email" type="email">
+    <div class="mt12"></div><label>পাসওয়ার্ড (কমপক্ষে ৬ ক্যারেক্টার)</label><input id="ef-pass" type="text">
+    <div class="login-error" id="ef-err" style="margin-top:12px;"></div>
+    <button class="btn accent w100 mt16" style="justify-content:center;" onclick="submitStaff(this)">সংরক্ষণ করুন</button>`);
+});
+async function submitStaff(btn){
+  const err = $('ef-err'); err.style.display = 'none'; btn.disabled = true;
   try{
-    await callFn("create_employee", { name: document.getElementById("ef-name").value, email: document.getElementById("ef-email").value, password: document.getElementById("ef-pass").value });
-    toast(t('employeeCreated')); document.getElementById("modal").innerHTML=""; render();
-  }catch(err){ toast(err.message,true); }
+    await callFn('create_employee', { name:$('ef-name').value.trim(), email:$('ef-email').value.trim(), password:$('ef-pass').value });
+    closeDyn(); showToast('✅ কর্মচারী তৈরি হয়েছে'); renderStaff();
+  }catch(e){ err.textContent = errMsg(e); err.style.display = 'block'; }
+  btn.disabled = false;
 }
 
-/* ======================= SUPER ADMIN ======================= */
-async function adminView(){
-  if(PROFILE.role !== "super_admin") return `<p class="bg-white rounded-xl p-5 text-sm">${t('noAccess')}</p>`;
-  const { data } = await sb.from("shops").select("id,name,address,phone,is_active,created_at").order("created_at",{ascending:false});
-  window.__SHOPS = data||[];
-  return `
-  <div class="flex justify-between items-center mb-3"><h1 class="text-lg font-bold">${t('admin')} · ${t('shops')}</h1>
-    <button onclick="openShopForm()" class="bg-emerald-600 text-white text-sm font-semibold px-3 py-2 rounded-lg">+ ${t('addShop')}</button></div>
-  <ul class="space-y-2">${(window.__SHOPS||[]).map(s=>`
-    <li class="bg-white border border-slate-200 rounded-xl p-3 flex items-center justify-between gap-3">
-      <div class="min-w-0"><p class="font-medium truncate">${s.name}</p><p class="text-xs text-slate-400 truncate">${[s.address,s.phone].filter(Boolean).join(' · ')}</p>
-        <p class="text-xs ${s.is_active?'text-emerald-700':'text-red-600'}">${s.is_active?t('active'):t('inactive')}</p></div>
-      <button onclick="toggleShop('${s.id}',${!s.is_active})" class="text-xs px-2 py-1 border border-slate-300 rounded-full">${s.is_active?t('inactive'):t('active')}</button>
-    </li>`).join("") || `<p class="text-sm text-slate-400">${t('noData')}</p>`}</ul>
-  <div id="modal"></div>`;
+/* ============ ADMIN (super admin) ============ */
+let shopsCache = [];
+async function renderAdmin(){
+  const { data, error } = await sb.from('shops').select('id,name,address,phone,is_active,created_at').order('created_at',{ascending:false});
+  if(error){ $('shopTableWrap').innerHTML = `<div class="empty muted">${esc(errMsg(error))}</div>`; return; }
+  shopsCache = data || [];
+  $('shopTableWrap').innerHTML = shopsCache.length ? `
+    <table><thead><tr><th>দোকান</th><th>ঠিকানা / ফোন</th><th>অবস্থা</th><th class="num">কার্যক্রম</th></tr></thead>
+    <tbody>${shopsCache.map(s => `<tr><td><strong>${esc(s.name)}</strong></td>
+      <td>${esc([s.address, s.phone].filter(Boolean).join(' · ')) || '-'}</td>
+      <td><span class="badge ${s.is_active?'paid':'off'}">${s.is_active?'সক্রিয়':'নিষ্ক্রিয়'}</span></td>
+      <td class="num"><button class="btn ghost sm" onclick="openShopUsers('${s.id}')">👥 ইউজার</button>
+        <button class="btn ghost sm" onclick="toggleShop('${s.id}', ${!s.is_active})">${s.is_active?'নিষ্ক্রিয়':'সক্রিয়'}</button></td></tr>`).join('')}</tbody></table>
+  ` : `<div class="empty"><div class="big">🏬</div>এখনো কোনো দোকান নেই</div>`;
 }
-async function toggleShop(id,val){
-  const { error } = await sb.from("shops").update({ is_active: val }).eq("id", id);
-  if(error) return toast(error.message, true);
-  render();
+async function toggleShop(id, val){
+  const { error } = await sb.from('shops').update({ is_active: val }).eq('id', id);
+  if(error){ showToast('⚠️ ' + errMsg(error)); return; }
+  renderAdmin();
 }
-function openShopForm(){
-  document.getElementById("modal").innerHTML = `
-  <div class="fixed inset-0 bg-black/40 flex items-center justify-center z-30 p-3">
-    <div class="bg-white rounded-xl p-5 w-full max-w-sm space-y-2 max-h-[85vh] overflow-auto">
-      <h2 class="font-bold">${t('addShop')}</h2>
-      <form onsubmit="submitShop(event)" class="space-y-2">
-        <input required id="sf-shopname" placeholder="${t('shopName')}" class="w-full px-3 py-2 border border-slate-300 rounded-lg"/>
-        <input id="sf-address" placeholder="${t('address')}" class="w-full px-3 py-2 border border-slate-300 rounded-lg"/>
-        <input id="sf-phone" placeholder="${t('phone')}" class="w-full px-3 py-2 border border-slate-300 rounded-lg"/>
-        <input required id="sf-ownername" placeholder="${t('ownerName')}" class="w-full px-3 py-2 border border-slate-300 rounded-lg"/>
-        <input required type="email" id="sf-owneremail" placeholder="${t('ownerEmail')}" class="w-full px-3 py-2 border border-slate-300 rounded-lg"/>
-        <input required minlength="6" type="password" id="sf-ownerpass" placeholder="${t('ownerPassword')}" class="w-full px-3 py-2 border border-slate-300 rounded-lg"/>
-        <div class="flex justify-end gap-2 pt-2">
-          <button type="button" onclick="document.getElementById('modal').innerHTML=''" class="px-3 py-2 border border-slate-300 rounded-lg text-sm">${t('cancel')}</button>
-          <button class="px-3 py-2 bg-emerald-600 text-white rounded-lg text-sm">${t('save')}</button>
-        </div>
-      </form>
-    </div>
-  </div>`;
-}
-async function submitShop(e){
-  e.preventDefault();
+$('btnAddShop').addEventListener('click', ()=>{
+  openDyn(`
+    <div class="modal-head"><h3>নতুন দোকান</h3><button class="close-x" onclick="closeDyn()">✕</button></div>
+    <label>দোকানের নাম</label><input id="sf-shop">
+    <div class="mt12"></div><label>ঠিকানা</label><input id="sf-addr">
+    <div class="mt12"></div><label>ফোন</label><input id="sf-phone">
+    <div class="divider"></div>
+    <label>মালিকের নাম</label><input id="sf-oname">
+    <div class="mt12"></div><label>মালিকের ইমেইল</label><input id="sf-omail" type="email">
+    <div class="mt12"></div><label>মালিকের পাসওয়ার্ড (কমপক্ষে ৬ ক্যারেক্টার)</label><input id="sf-opass" type="text">
+    <div class="login-error" id="sf-err" style="margin-top:12px;"></div>
+    <button class="btn accent w100 mt16" style="justify-content:center;" onclick="submitShop(this)">সংরক্ষণ করুন</button>`);
+});
+async function submitShop(btn){
+  const err = $('sf-err'); err.style.display = 'none'; btn.disabled = true;
   try{
-    await callFn("create_shop_owner", { shopName: document.getElementById("sf-shopname").value, address: document.getElementById("sf-address").value, phone: document.getElementById("sf-phone").value,
-      ownerName: document.getElementById("sf-ownername").value, ownerEmail: document.getElementById("sf-owneremail").value, ownerPassword: document.getElementById("sf-ownerpass").value });
-    toast(t('shopCreated')); document.getElementById("modal").innerHTML=""; render();
-  }catch(err){ toast(err.message, true); }
+    await callFn('create_shop_owner', { shopName:$('sf-shop').value.trim(), address:$('sf-addr').value.trim(), phone:$('sf-phone').value.trim(),
+      ownerName:$('sf-oname').value.trim(), ownerEmail:$('sf-omail').value.trim(), ownerPassword:$('sf-opass').value });
+    closeDyn(); showToast('✅ দোকান তৈরি হয়েছে'); renderAdmin();
+  }catch(e){ err.textContent = errMsg(e); err.style.display = 'block'; }
+  btn.disabled = false;
+}
+let shopUsers = [], shopUsersShopId = null;
+async function openShopUsers(shopId){
+  try{
+    const res = await callFn('list_shop_users', { shopId });
+    shopUsers = res.users || []; shopUsersShopId = shopId;
+    const shop = shopsCache.find(s => s.id === shopId);
+    openDyn(`
+      <div class="modal-head"><h3>${esc(shop ? shop.name : '')} · ইউজার</h3><button class="close-x" onclick="closeDyn()">✕</button></div>
+      ${shopUsers.length ? `<table><tbody>${shopUsers.map(u => `<tr>
+        <td><strong>${esc(u.name)}</strong><div class="muted">${esc(u.email)} · ${u.role==='owner'?'মালিক':'কর্মচারী'}</div></td>
+        <td class="num"><button class="btn ghost sm" onclick="openEditUser('${u.id}')">✏️ এডিট</button>
+        <button class="btn danger sm" onclick="deleteShopUser('${u.id}')">🗑️</button></td></tr>`).join('')}</tbody></table>`
+        : `<div class="empty muted">কোনো ইউজার নেই</div>`}`);
+  }catch(e){ showToast('⚠️ ' + errMsg(e)); }
+}
+function openEditUser(userId){
+  const u = shopUsers.find(x => x.id === userId); if(!u) return;
+  openDyn(`
+    <div class="modal-head"><h3>ইউজার এডিট</h3><button class="close-x" onclick="closeDyn()">✕</button></div>
+    <div class="muted" style="margin-bottom:10px;">${esc(u.email)}</div>
+    <label>নাম</label><input id="eu-name" value="${esc(u.name)}">
+    <div class="mt12"></div><label>নতুন পাসওয়ার্ড (খালি রাখলে বদলাবে না)</label><input id="eu-pass" type="text" placeholder="কমপক্ষে ৬ ক্যারেক্টার">
+    <div class="muted mt8">পাসওয়ার্ড দেখা যায় না — শুধু নতুন করে সেট করা যায়।</div>
+    <div class="login-error" id="eu-err" style="margin-top:12px;"></div>
+    <div class="flex gap8 mt16"><button class="btn ghost" onclick="openShopUsers('${shopUsersShopId}')">বাতিল</button>
+    <button class="btn accent" onclick="saveShopUser('${u.id}', this)">সংরক্ষণ</button></div>`);
+}
+async function saveShopUser(userId, btn){
+  const err = $('eu-err'); err.style.display = 'none'; btn.disabled = true;
+  try{
+    await callFn('update_shop_user', { userId, name:$('eu-name').value.trim(), password:$('eu-pass').value || undefined });
+    showToast('✅ আপডেট হয়েছে'); openShopUsers(shopUsersShopId);
+  }catch(e){ err.textContent = errMsg(e); err.style.display = 'block'; btn.disabled = false; }
+}
+async function deleteShopUser(userId){
+  if(!confirm('এই ইউজার স্থায়ীভাবে ডিলেট হবে। নিশ্চিত?')) return;
+  try{ await callFn('delete_shop_user', { userId }); showToast('ইউজার ডিলেট হয়েছে'); openShopUsers(shopUsersShopId); }
+  catch(e){ showToast('⚠️ ' + errMsg(e)); }
 }
 
-/* ======================= ROUTER ======================= */
-async function render(){
-  if(!SESSION){
-    const hasAdmin = await checkSuperAdminExists();
-    app.innerHTML = layout(!hasAdmin ? setupView() : loginView());
-    return;
-  }
-  if(!PROFILE) await loadSession();
-  if(!PROFILE){ app.innerHTML = layout(loginView()); return; }
-  app.innerHTML = layout(`<p class="text-sm text-slate-400">${t('loading')}</p>`);
-  let html = "";
-  if(ROUTE.startsWith("/receipt/")) html = await receiptView(ROUTE.split("/")[2]);
-  else if(ROUTE === "/pos") { html = await posView(); }
-  else if(ROUTE === "/products") html = await productsView();
-  else if(ROUTE === "/customers") html = await customersView();
-  else if(ROUTE === "/sales") html = await salesView();
-  else if(ROUTE === "/reports") html = await reportsView();
-  else if(ROUTE === "/staff") html = await staffView();
-  else if(ROUTE === "/admin") html = await adminView();
-  else html = await dashboardView();
-  app.innerHTML = layout(html);
-  if(ROUTE === "/pos"){ renderProductGrid(); renderCart(); }
-  if(ROUTE === "/products") renderProductList();
-  if(ROUTE === "/customers") renderCustList();
-  if(ROUTE === "/sales") renderSalesList();
-}
+/* ============ INIT ============ */
+startApp();
 
-/* ======================= INIT ======================= */
-window.nav = nav; window.setLang = setLang; window.doLogin = doLogin; window.doLogout = doLogout;
-window.addToCart = addToCart; window.setQty = setQty; window.renderProductGrid = renderProductGrid; window.addFirstMatch = addFirstMatch;
-window.renderCustPick = renderCustPick; window.pickCustomer = pickCustomer; window.renderTotals = renderTotals; window.completeSale = completeSale;
-window.openProductForm = openProductForm; window.saveProduct = saveProduct; window.adjustStock = adjustStock; window.deleteProduct = deleteProduct; window.renderProductList = renderProductList;
-window.openCustomerForm = openCustomerForm; window.saveCustomer = saveCustomer; window.openCustomerDetail = openCustomerDetail; window.collectDue = collectDue; window.renderCustList = renderCustList;
-window.renderSalesList = renderSalesList; window.renderReport = renderReport;
-window.openStaffForm = openStaffForm; window.submitStaff = submitStaff; window.toggleStaff = toggleStaff;
-window.openShopForm = openShopForm; window.submitShop = submitShop; window.toggleShop = toggleShop;
-
-(async () => { await loadSession(); await render(); })();
 </script>
 </body>
 </html>
