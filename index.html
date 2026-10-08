@@ -568,6 +568,21 @@
     animation: bgDrift 60s linear infinite;
   }
   @keyframes bgDrift{ from{ background-position: 0 0, 0 0, 0 0, 0 0; } to{ background-position: 0 0, 0 0, 0 0, 560px 990px; } }
+  /* ---- বারকোড ---- */
+  .barcode-row{ display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+  .barcode-row input{ flex:1; min-width:140px; }
+  .bc-chip{ display:block; font-size:11.5px; color:var(--muted); font-family:ui-monospace,Menlo,Consolas,monospace; margin-top:2px; font-weight:400; }
+  .scan-video-wrap{ position:relative; background:#000; border-radius:10px; overflow:hidden; aspect-ratio:4/3; }
+  .scan-video-wrap video{ width:100%; height:100%; object-fit:cover; display:block; }
+  .scan-frame{ position:absolute; left:10%; right:10%; top:32%; bottom:32%; border:2px solid #4ADE80; border-radius:8px; box-shadow:0 0 0 999px rgba(0,0,0,.38); pointer-events:none; }
+  .pos-search-row{ display:flex; gap:8px; margin-bottom:12px; }
+  .pos-search-row .search-box{ margin-bottom:0; flex:1; min-width:0; }
+  .lb-list{ max-height:45vh; overflow:auto; border:1px solid #DCE6E0; border-radius:8px; margin-top:12px; }
+  .lb-row{ display:flex; align-items:center; gap:10px; padding:8px 10px; border-bottom:1px solid #EEF3F0; }
+  .lb-row:last-child{ border-bottom:0; }
+  .lb-row .lb-name{ flex:1; min-width:0; font-size:14px; }
+  .lb-row .lb-name small{ display:block; color:var(--muted); font-family:ui-monospace,Menlo,Consolas,monospace; font-size:11.5px; }
+  .lb-row input[type=number]{ width:64px; }
 </style>
 </head>
 <body>
@@ -699,7 +714,10 @@
       <div class="pos-grid">
         <div class="card">
           <h3 class="mt8" style="margin-bottom:10px;">পণ্য বাছাই করুন</h3>
-          <input class="search-box" id="posSearch" placeholder="🔍 পণ্যের নাম লিখুন...">
+          <div class="pos-search-row">
+            <input class="search-box" id="posSearch" placeholder="🔍 পণ্যের নাম বা বারকোড...">
+            <button class="btn accent" id="btnPosScan" title="ক্যামেরা দিয়ে বারকোড স্ক্যান">📷 স্ক্যান</button>
+          </div>
           <div class="product-pick" id="posProductList"></div>
         </div>
         <div class="card">
@@ -748,10 +766,11 @@
           <h3>সকল পণ্য</h3>
           <div class="flex gap8" style="align-items:center;">
             <label class="vis-toggle" id="buyToggleWrap"><input type="checkbox" id="toggleBuyPrice" checked> ক্রয়মূল্য দেখান</label>
+            <button class="btn ghost sm" id="btnLabelPrint">🏷️ লেবেল প্রিন্ট</button>
             <button class="btn accent sm" id="btnAddProduct">+ নতুন পণ্য</button>
           </div>
         </div>
-        <input class="search-box" id="productSearch" placeholder="🔍 পণ্য খুঁজুন...">
+        <input class="search-box" id="productSearch" placeholder="🔍 পণ্যের নাম, ক্যাটাগরি বা বারকোড...">
         <div id="productTableWrap"></div>
       </div>
     </div>
@@ -862,6 +881,13 @@
         <div class="img-note" id="prodImgNote">ছবি অটোমেটিক ছোট করে (প্রায় ১০০ KB এর মধ্যে) আপলোড হবে।</div>
       </div>
     </div>
+    <div class="mt12"></div>
+    <label>বারকোড (ঐচ্ছিক)</label>
+    <div class="barcode-row">
+      <input id="prodBarcode" placeholder="স্ক্যান করুন, লিখুন বা অটো তৈরি করুন" autocomplete="off" inputmode="text">
+      <button type="button" class="btn ghost sm" id="btnScanBarcode">📷 স্ক্যান</button>
+      <button type="button" class="btn ghost sm" id="btnGenBarcode">🎲 অটো তৈরি</button>
+    </div>
     <div class="form-row mt12" style="--cols:2;">
       <div><label>ক্রয় মূল্য (৳)</label><input type="number" id="prodBuy" min="0" step="any"></div>
       <div><label>বিক্রয় মূল্য (৳)</label><input type="number" id="prodSell" min="0" step="any"></div>
@@ -921,6 +947,20 @@
   <div class="modal"><div id="dynModalBody"></div></div>
 </div>
 
+<!-- Barcode scanner modal -->
+<div class="modal-overlay" id="scanModal">
+  <div class="modal">
+    <div class="modal-head"><h3 id="scanTitle">📷 বারকোড স্ক্যান</h3><button class="close-x" onclick="stopScanner()">✕</button></div>
+    <div class="scan-video-wrap"><video id="scanVideo" playsinline muted></video><div class="scan-frame"></div></div>
+    <div class="muted mt8" id="scanStatus">ক্যামেরা চালু হচ্ছে...</div>
+    <div class="flex gap8 mt12">
+      <input id="scanManual" placeholder="অথবা হাতে বারকোড লিখুন" autocomplete="off" style="flex:1;">
+      <button class="btn accent sm" id="btnScanManual">যোগ</button>
+    </div>
+    <button class="btn ghost w100 mt12" style="justify-content:center;" onclick="stopScanner()">সম্পন্ন</button>
+  </div>
+</div>
+
 <div id="print-area"></div>
 <div class="toast" id="toast"></div>
 
@@ -932,7 +972,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 /* ============ STATE ============ */
 let PROFILE = null, SHOP = null;
-let products = [];   // {id,name,category,unit,sellPrice,buyPrice(owner only),stock,reorder}
+let products = [];   // {id,name,category,unit,sellPrice,buyPrice(owner only),stock,reorder,barcode}
 let invoices = [];   // {id,invoiceNo,date,createdAt,customerName,...,items:[{name,qty,price,cost(owner only)}]}
 let cart = [];       // {productId,name,price,qty}
 let currentViewName = 'dashboard';
@@ -994,11 +1034,11 @@ async function fetchAll(make){
 async function loadProducts(){
   const rows = isOwner()
     ? await fetchAll(()=> sb.rpc('products_with_cost').order('name').order('id'))
-    : await fetchAll(()=> sb.from('products').select('id,name,category,unit,sell_price,stock_qty,low_stock_level,image_url').order('name').order('id'));
+    : await fetchAll(()=> sb.from('products').select('id,name,category,unit,sell_price,stock_qty,low_stock_level,image_url,barcode').order('name').order('id'));
   products = rows.map(r => ({
     id:r.id, name:r.name, category:r.category||'', unit:r.unit||'পিস',
     sellPrice:Number(r.sell_price), buyPrice: r.buy_price!=null ? Number(r.buy_price) : null,
-    stock:Number(r.stock_qty), reorder:Number(r.low_stock_level), imageUrl:r.image_url || ''
+    stock:Number(r.stock_qty), reorder:Number(r.low_stock_level), imageUrl:r.image_url || '', barcode:r.barcode || ''
   }));
 }
 async function loadInvoices(){
@@ -1153,6 +1193,7 @@ function applyNavByRole(){
   document.querySelectorAll('#mainNav .nav-item').forEach(n => { n.style.display = ok.includes(n.dataset.view) ? '' : 'none'; });
   $('buyToggleWrap').style.display = isOwner() ? '' : 'none';
   $('btnAddProduct').style.display = isOwner() ? '' : 'none';
+  $('btnLabelPrint').style.display = isOwner() ? '' : 'none';
 }
 async function goView(name){
   if(!PROFILE) return;
@@ -1414,7 +1455,7 @@ async function removeProductImage(url){
 
 function renderProducts(){
   const q = ($('productSearch').value||'').trim().toLowerCase();
-  const list = products.filter(p => p.name.toLowerCase().includes(q) || (p.category||'').toLowerCase().includes(q));
+  const list = products.filter(p => p.name.toLowerCase().includes(q) || (p.category||'').toLowerCase().includes(q) || (p.barcode||'').toLowerCase().includes(q));
   const owner = isOwner();
   const buyCols = owner && showBuyPrice ? `<th class="num">ক্রয় মূল্য</th><th class="num">লাভ/একক</th>` : '';
   $('productTableWrap').innerHTML = list.length ? `
@@ -1427,10 +1468,10 @@ function renderProducts(){
       const profit = p.sellPrice - (p.buyPrice||0);
       const buyCells = owner && showBuyPrice ? `<td class="num">${money(p.buyPrice)}</td><td class="num" style="color:${profit>=0?'var(--success)':'var(--danger)'}">${money(profit)}</td>` : '';
       return `<tr>
-        <td><div class="pname">${thumbHtml(p)}<span>${esc(p.name)}</span></div></td><td>${esc(p.category)||'-'}</td>${buyCells}
+        <td><div class="pname">${thumbHtml(p)}<span>${esc(p.name)}${p.barcode ? `<span class="bc-chip">▮▯ ${esc(p.barcode)}</span>` : ''}</span></div></td><td>${esc(p.category)||'-'}</td>${buyCells}
         <td class="num">${money(p.sellPrice)}</td>
         <td class="num">${p.stock} ${esc(p.unit)} ${low ? '<span class="badge low">কম</span>' : ''}</td>
-        ${owner ? `<td class="num"><button class="btn ghost sm" onclick="editProduct('${p.id}')">✏️</button> <button class="btn danger sm" onclick="deleteProduct('${p.id}')">🗑️</button></td>` : ''}
+        ${owner ? `<td class="num"><button class="btn ghost sm" title="বারকোড লেবেল প্রিন্ট" onclick="openLabelPrint('${p.id}')">🏷️</button> <button class="btn ghost sm" onclick="editProduct('${p.id}')">✏️</button> <button class="btn danger sm" onclick="deleteProduct('${p.id}')">🗑️</button></td>` : ''}
       </tr>`;
     }).join('')}
     </tbody></table>
@@ -1440,7 +1481,7 @@ $('productSearch').addEventListener('input', renderProducts);
 $('toggleBuyPrice').addEventListener('change', e => { showBuyPrice = e.target.checked; renderProducts(); });
 $('btnAddProduct').addEventListener('click', ()=>{
   $('productModalTitle').textContent = 'নতুন পণ্য যোগ করুন';
-  ['prodId','prodName','prodBuy','prodSell','prodStock','prodCategory'].forEach(id => $(id).value = '');
+  ['prodId','prodName','prodBuy','prodSell','prodStock','prodCategory','prodBarcode'].forEach(id => $(id).value = '');
   $('prodUnit').value = 'পিস'; $('prodReorder').value = '5';
   resetProdImageState('');
   openModal('productModal');
@@ -1449,7 +1490,7 @@ function editProduct(id){
   const p = products.find(x => x.id === id); if(!p) return;
   $('productModalTitle').textContent = 'পণ্য সম্পাদনা করুন';
   $('prodId').value = p.id; $('prodName').value = p.name; $('prodBuy').value = p.buyPrice ?? 0; $('prodSell').value = p.sellPrice;
-  $('prodStock').value = p.stock; $('prodUnit').value = p.unit || 'পিস'; $('prodCategory').value = p.category || ''; $('prodReorder').value = p.reorder;
+  $('prodStock').value = p.stock; $('prodUnit').value = p.unit || 'পিস'; $('prodCategory').value = p.category || ''; $('prodReorder').value = p.reorder; $('prodBarcode').value = p.barcode || '';
   resetProdImageState(p.imageUrl);
   openModal('productModal');
 }
@@ -1466,8 +1507,11 @@ $('btnSaveProduct').addEventListener('click', async ()=>{
   const buy = Number($('prodBuy').value), sell = Number($('prodSell').value), stock = Number($('prodStock').value);
   if(!name){ showToast('⚠️ পণ্যের নাম দিন'); return; }
   if(isNaN(buy) || isNaN(sell) || isNaN(stock) || $('prodSell').value==='' ){ showToast('⚠️ সঠিক মূল্য ও স্টক দিন'); return; }
+  const barcode = normBarcode($('prodBarcode').value);
+  const dup = barcode && products.find(x => x.barcode && x.barcode.toLowerCase() === barcode.toLowerCase() && x.id !== $('prodId').value);
+  if(dup){ showToast('⚠️ এই বারকোড আগে থেকেই "' + dup.name + '" পণ্যে আছে'); return; }
   const row = {
-    name, buy_price: buy, sell_price: sell, stock_qty: stock,
+    name, buy_price: buy, sell_price: sell, stock_qty: stock, barcode: barcode || null,
     unit: $('prodUnit').value.trim() || 'পিস', category: $('prodCategory').value.trim() || null,
     low_stock_level: Number($('prodReorder').value) || 0
   };
@@ -1480,7 +1524,7 @@ $('btnSaveProduct').addEventListener('click', async ()=>{
   } else if(prodImg.removed){ row.image_url = null; }
   const { error } = id ? await sb.from('products').update(row).eq('id', id) : await sb.from('products').insert({ ...row, shop_id: PROFILE.shop_id });
   $('btnSaveProduct').disabled = false;
-  if(error){ if(newUrl) removeProductImage(newUrl); showToast('⚠️ ' + errMsg(error)); return; }
+  if(error){ if(newUrl) removeProductImage(newUrl); showToast('⚠️ ' + (error.code === '23505' ? 'এই বারকোড অন্য একটি পণ্যে আছে' : errMsg(error))); return; }
   if((newUrl || prodImg.removed) && prodImg.existingUrl) removeProductImage(prodImg.existingUrl);   // পুরনো ছবি মুছে জায়গা বাঁচান
   closeModal('productModal');
   await refreshData(true); renderProducts();
@@ -1491,7 +1535,7 @@ $('btnSaveProduct').addEventListener('click', async ()=>{
 function renderPOS(){ renderPOSProductList(); renderCart(); updatePrevDueNotice(); }
 function renderPOSProductList(){
   const q = ($('posSearch').value||'').trim().toLowerCase();
-  const list = products.filter(p => p.name.toLowerCase().includes(q));
+  const list = products.filter(p => p.name.toLowerCase().includes(q) || (p.barcode||'').toLowerCase().includes(q));
   $('posProductList').innerHTML = list.length ? list.map(p => `
     <div class="pick-item" onclick="addToCart('${p.id}')">
       <div class="pick-main">${thumbHtml(p, true)}<div><div class="name">${esc(p.name)}</div><div class="meta">স্টক: ${p.stock} ${esc(p.unit)}</div></div></div>
@@ -1925,6 +1969,235 @@ async function submitStaff(btn){
     closeDyn(); showToast('✅ কর্মচারী তৈরি হয়েছে'); renderStaff();
   }catch(e){ err.textContent = errMsg(e); err.style.display = 'block'; }
   btn.disabled = false;
+}
+
+
+/* ============ BARCODE (স্ক্যান / জেনারেট / লেবেল প্রিন্ট) ============ */
+const ZXING_URL = 'https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js';
+const JSBARCODE_URL = 'https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js';
+const _scriptP = {};
+function loadScript(url){
+  if(_scriptP[url]) return _scriptP[url];
+  return _scriptP[url] = new Promise((res, rej) => {
+    const sc = document.createElement('script'); sc.src = url; sc.onload = res;
+    sc.onerror = () => { delete _scriptP[url]; rej(new Error('লাইব্রেরি লোড হয়নি')); };
+    document.head.appendChild(sc);
+  });
+}
+function normBarcode(v){ return (v || '').trim().replace(/\s+/g, ''); }
+function ean13Check(d12){ let sum = 0; for(let i = 0; i < 12; i++) sum += (+d12[i]) * (i % 2 ? 3 : 1); return (10 - sum % 10) % 10; }
+function isValidEAN13(c){ return /^\d{13}$/.test(c) && ean13Check(c.slice(0, 12)) === +c[12]; }
+function generateBarcode(){
+  const used = new Set(products.map(p => (p.barcode || '').toLowerCase()).filter(Boolean));
+  for(let t = 0; t < 60; t++){
+    let body = '20'; for(let i = 0; i < 10; i++) body += Math.floor(Math.random() * 10);   // 20xxxx = দোকানের নিজস্ব EAN-13 রেঞ্জ
+    const code = body + ean13Check(body);
+    if(!used.has(code)) return code;
+  }
+  return null;
+}
+function findByBarcode(code){
+  const c = normBarcode(code).toLowerCase();
+  return c ? products.find(p => p.barcode && p.barcode.toLowerCase() === c) : null;
+}
+let _audioCtx;
+function beep(ok){
+  try{
+    _audioCtx = _audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = _audioCtx.createOscillator(), g = _audioCtx.createGain();
+    o.frequency.value = ok ? 1100 : 300; g.gain.value = 0.08;
+    o.connect(g); g.connect(_audioCtx.destination); o.start(); o.stop(_audioCtx.currentTime + (ok ? 0.1 : 0.25));
+  }catch(e){}
+  try{ if(navigator.vibrate) navigator.vibrate(ok ? 40 : [60, 40, 60]); }catch(e){}
+}
+
+/* ---- বিক্রয়ে স্ক্যান ---- */
+function posScan(code){
+  const p = findByBarcode(code);
+  if(!p){ beep(false); showToast('⚠️ এই বারকোডে কোনো পণ্য নেই: ' + code); return null; }
+  addToCart(p.id); beep(true);
+  showToast(p.name + ' কার্টে যোগ হয়েছে');
+  return p;
+}
+$('posSearch').addEventListener('keydown', e => {
+  if(e.key !== 'Enter') return;
+  e.preventDefault();
+  const code = normBarcode($('posSearch').value);
+  if(!code) return;
+  if(findByBarcode(code)){ posScan(code); $('posSearch').value = ''; renderPOSProductList(); }
+  else if(!products.some(p => p.name.toLowerCase().includes(code.toLowerCase()))){ posScan(code); }   // নাম/বারকোড কিছুই মেলেনি
+});
+$('btnPosScan').addEventListener('click', () => openScanner('pos'));
+
+/* USB / ব্লুটুথ স্ক্যানার (কিবোর্ডের মতো দ্রুত টাইপ করে + Enter) — POS পেজে ফোকাস যেখানেই থাকুক */
+let _scanBuf = '', _scanLast = 0;
+document.addEventListener('keydown', e => {
+  if(!$('view-pos').classList.contains('active')) return;
+  if(document.querySelector('.modal-overlay.active')) return;
+  if(e.ctrlKey || e.metaKey || e.altKey) return;
+  const t = e.target, tag = (t.tagName || '').toLowerCase();
+  const inField = tag === 'input' || tag === 'textarea' || tag === 'select';
+  if(inField) { _scanBuf = ''; return; }   // সার্চ বক্সের Enter আলাদাভাবে হ্যান্ডেল হয়
+  const now = Date.now();
+  if(e.key === 'Enter'){
+    if(_scanBuf.length >= 4){ e.preventDefault(); posScan(_scanBuf); }
+    _scanBuf = ''; return;
+  }
+  if(e.key.length !== 1) return;
+  if(now - _scanLast > 80) _scanBuf = '';   // ধীরে টাইপ করলে স্ক্যানার নয়
+  _scanBuf += e.key; _scanLast = now;
+});
+
+/* ---- ক্যামেরা স্ক্যানার ---- */
+let scanState = null;
+async function openScanner(mode){
+  if(scanState) return;
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    showToast('⚠️ ক্যামেরা চালু করা যাচ্ছে না (HTTPS লিংক ও আধুনিক ব্রাউজার লাগবে)'); return;
+  }
+  $('scanTitle').textContent = mode === 'pos' ? '📷 বারকোড স্ক্যান — বিক্রয়' : '📷 বারকোড স্ক্যান';
+  $('scanStatus').textContent = 'ক্যামেরা চালু হচ্ছে...';
+  $('scanManual').value = '';
+  openModal('scanModal');
+  const st = scanState = { mode, stream:null, timer:null, last:'', lastAt:0, busy:false };
+  try{
+    st.stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ ideal:'environment' }, width:{ ideal:1280 }, height:{ ideal:720 } }, audio:false });
+  }catch(e){
+    if(scanState === st) $('scanStatus').textContent = '⚠️ ক্যামেরার অনুমতি পাওয়া যায়নি। ব্রাউজারে ক্যামেরার অনুমতি দিন, অথবা নিচে হাতে বারকোড লিখুন।';
+    return;
+  }
+  if(scanState !== st){ st.stream.getTracks().forEach(t => t.stop()); return; }   // ইতিমধ্যে বন্ধ হয়ে গেছে
+  const v = $('scanVideo'); v.srcObject = st.stream; try{ await v.play(); }catch(e){}
+  let detect = null;
+  if('BarcodeDetector' in window){
+    try{
+      const det = new BarcodeDetector({ formats:['ean_13','ean_8','upc_a','upc_e','code_128','code_39','itf','qr_code'] });
+      detect = async () => { const r = await det.detect(v); return r.length ? r[0].rawValue : null; };
+    }catch(e){ detect = null; }
+  }
+  if(!detect){
+    try{ await loadScript(ZXING_URL); }
+    catch(e){ if(scanState === st) $('scanStatus').textContent = '⚠️ স্ক্যানার লাইব্রেরি লোড হয়নি — ইন্টারনেট চেক করুন, অথবা হাতে লিখুন।'; return; }
+    if(scanState !== st) return;
+    const hints = new Map(); hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+    const reader = new ZXing.MultiFormatReader(); reader.setHints(hints);
+    const cv = document.createElement('canvas'), ctx = cv.getContext('2d', { willReadFrequently:true });
+    detect = async () => {
+      if(!v.videoWidth) return null;
+      const w = Math.min(v.videoWidth, 800), h = Math.round(v.videoHeight * w / v.videoWidth);
+      cv.width = w; cv.height = h; ctx.drawImage(v, 0, 0, w, h);
+      try{
+        const bmp = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(new ZXing.HTMLCanvasElementLuminanceSource(cv)));
+        return reader.decode(bmp).getText();
+      }catch(e){ return null; }   // বারকোড পাওয়া যায়নি
+    };
+  }
+  $('scanStatus').textContent = 'বারকোডটি সবুজ ফ্রেমের ভেতরে ধরুন';
+  st.timer = setInterval(async () => {
+    if(scanState !== st || st.busy) return;
+    if(!$('scanModal').classList.contains('active')){ stopScanner(); return; }
+    st.busy = true;
+    try{ const code = await detect(); if(code) onScanResult(st, code, false); }catch(e){}
+    st.busy = false;
+  }, 250);
+}
+function onScanResult(st, raw, forced){
+  const code = normBarcode(raw); if(!code) return;
+  const now = Date.now();
+  if(!forced && code === st.last && now - st.lastAt < 1500){ st.lastAt = now; return; }   // একই বারকোড বারবার যোগ হওয়া ঠেকায়
+  st.last = code; st.lastAt = now;
+  if(st.mode === 'product'){
+    $('prodBarcode').value = code; beep(true); stopScanner(); showToast('বারকোড বসানো হয়েছে: ' + code);
+  } else {
+    const p = posScan(code);
+    $('scanStatus').textContent = p ? '✅ যোগ হয়েছে: ' + p.name : '⚠️ এই বারকোডে কোনো পণ্য নেই: ' + code;
+  }
+}
+function stopScanner(){
+  const st = scanState; scanState = null;
+  if(st){ clearInterval(st.timer); if(st.stream) st.stream.getTracks().forEach(t => t.stop()); }
+  const v = $('scanVideo'); try{ v.pause(); v.srcObject = null; }catch(e){}
+  closeModal('scanModal');
+}
+$('scanModal').addEventListener('click', e => { if(e.target === $('scanModal')) stopScanner(); });
+function scanManualSubmit(){
+  const code = normBarcode($('scanManual').value); if(!code) return;
+  const st = scanState || { mode:'pos', last:'', lastAt:0 };
+  onScanResult(st, code, true); $('scanManual').value = '';
+}
+$('btnScanManual').addEventListener('click', scanManualSubmit);
+$('scanManual').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); scanManualSubmit(); } });
+
+/* ---- পণ্য ফর্মে বারকোড ---- */
+$('btnScanBarcode').addEventListener('click', () => openScanner('product'));
+$('btnGenBarcode').addEventListener('click', () => {
+  const c = generateBarcode();
+  if(!c){ showToast('⚠️ বারকোড তৈরি করা যায়নি, আবার চেষ্টা করুন'); return; }
+  $('prodBarcode').value = c;
+});
+$('prodBarcode').addEventListener('keydown', e => { if(e.key === 'Enter') e.preventDefault(); });   // স্ক্যানারের Enter যেন কিছু সাবমিট না করে
+
+/* ---- বারকোড লেবেল প্রিন্ট ---- */
+$('btnLabelPrint').addEventListener('click', () => openLabelPrint());
+function openLabelPrint(preId){
+  const list = products.filter(p => p.barcode);
+  if(preId && !list.some(p => p.id === preId)){ showToast('⚠️ এই পণ্যে বারকোড নেই — এডিট করে বারকোড যোগ করুন'); return; }
+  if(!list.length){ showToast('⚠️ কোনো পণ্যে বারকোড নেই — আগে পণ্যে বারকোড যোগ করুন'); return; }
+  openDyn(`
+    <div class="modal-head"><h3>🏷️ বারকোড লেবেল প্রিন্ট</h3><button class="close-x" onclick="closeDyn()">✕</button></div>
+    <label>লেবেলের ধরন</label>
+    <select id="lb-size">
+      <option value="roll">লেবেল রোল প্রিন্টার (৫০×৩০ মিমি)</option>
+      <option value="a4">A4 কাগজ (৩ কলামে অনেকগুলো)</option>
+    </select>
+    <label class="vis-toggle" style="margin-top:12px;display:flex;gap:8px;align-items:center;"><input type="checkbox" id="lb-price" checked> লেবেলে বিক্রয় মূল্য দেখান</label>
+    <div class="muted mt8">যে পণ্যের লেবেল লাগবে সেটি বাছুন ও কতগুলো লাগবে লিখুন।</div>
+    <div class="lb-list">${list.map(p => `
+      <div class="lb-row">
+        <input type="checkbox" class="lb-chk" data-id="${p.id}" ${p.id === preId ? 'checked' : ''}>
+        <div class="lb-name">${esc(p.name)}<small>${esc(p.barcode)}</small></div>
+        <input type="number" class="lb-qty" data-id="${p.id}" min="1" max="500" value="1">
+      </div>`).join('')}</div>
+    <button class="btn accent w100 mt16" style="justify-content:center;" onclick="doPrintLabels(this)">🖨️ প্রিন্ট করুন</button>`);
+}
+function barcodeSvg(code){
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  JsBarcode(svg, code, { format: isValidEAN13(code) ? 'EAN13' : 'CODE128', width:2, height:50, displayValue:true, fontSize:14, margin:0, textMargin:2 });
+  return svg.outerHTML;
+}
+async function doPrintLabels(btn){
+  const chosen = [...document.querySelectorAll('.lb-chk')].filter(c => c.checked).map(c => {
+    const qtyEl = document.querySelector(`.lb-qty[data-id="${c.dataset.id}"]`);
+    return { p: products.find(x => x.id === c.dataset.id), qty: Math.min(500, Math.max(1, parseInt(qtyEl.value) || 1)) };
+  }).filter(x => x.p);
+  if(!chosen.length){ showToast('⚠️ অন্তত একটি পণ্য বাছুন'); return; }
+  const w = window.open('', '_blank');
+  if(!w){ showToast('⚠️ পপ-আপ ব্লক করা আছে — ব্রাউজারে পপ-আপের অনুমতি দিন'); return; }
+  w.document.write('<p style="font-family:sans-serif;padding:20px">লেবেল তৈরি হচ্ছে...</p>');
+  btn.disabled = true;
+  try{ await loadScript(JSBARCODE_URL); }
+  catch(e){ w.close(); btn.disabled = false; showToast('⚠️ বারকোড লাইব্রেরি লোড হয়নি — ইন্টারনেট চেক করুন'); return; }
+  const roll = $('lb-size').value === 'roll', showPrice = $('lb-price').checked;
+  let labels = '';
+  chosen.forEach(({ p, qty }) => {
+    const one = `<div class="label"><div class="nm">${esc(p.name)}</div><div class="bc">${barcodeSvg(p.barcode)}</div>${showPrice ? `<div class="pr">${money(p.sellPrice)}</div>` : ''}</div>`;
+    for(let i = 0; i < qty; i++) labels += one;
+  });
+  const css = roll
+    ? `@page{size:50mm 30mm;margin:0} .label{width:50mm;height:30mm;page-break-after:always;padding:1.5mm 2.5mm}`
+    : `@page{size:A4;margin:8mm} .sheet{display:grid;grid-template-columns:repeat(3,1fr);gap:2mm} .label{height:34mm;padding:2mm 3mm;page-break-inside:avoid;outline:1px dashed #ddd}`;
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>বারকোড লেবেল</title><style>
+    *{box-sizing:border-box} body{margin:0;font-family:'Noto Sans Bengali','Kalpurush',Arial,sans-serif;color:#000}
+    .label{display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;text-align:center}
+    .nm{font-size:9.5px;font-weight:700;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:1mm}
+    .bc{width:100%;flex:1;min-height:0;display:flex;align-items:center;justify-content:center}
+    .bc svg{width:100%;height:100%;max-height:${roll ? '15mm' : '19mm'}}
+    .pr{font-size:11px;font-weight:700;margin-top:.5mm}
+    ${css}
+  </style></head><body><div class="${roll ? '' : 'sheet'}">${labels}</div></body></html>`;
+  w.document.open(); w.document.write(html); w.document.close();
+  setTimeout(() => { try{ w.focus(); w.print(); }catch(e){} }, 500);
+  btn.disabled = false; closeDyn();
 }
 
 /* ============ ADMIN (super admin) ============ */
