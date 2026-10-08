@@ -1940,7 +1940,8 @@ async function renderAdmin(){
       <td><span class="badge ${s.is_active?'paid':'off'}">${s.is_active?'সক্রিয়':'নিষ্ক্রিয়'}</span></td>
       <td class="num"><button class="btn ghost sm" onclick="openShopUsers('${s.id}')">👥 ইউজার</button>
         <button class="btn ghost sm" onclick="toggleShop('${s.id}', ${!s.is_active})">${s.is_active?'নিষ্ক্রিয়':'সক্রিয়'}</button>
-        <button class="btn danger sm" onclick="openResetShop('${s.id}')">🧹 ডাটা রিসেট</button></td></tr>`).join('')}</tbody></table>
+        <button class="btn danger sm" onclick="openResetShop('${s.id}')">🧹 ডাটা রিসেট</button>
+        <button class="btn danger sm" onclick="openDeleteShop('${s.id}')">🗑️ ডিলেট</button></td></tr>`).join('')}</tbody></table>
   ` : `<div class="empty"><div class="big">🏬</div>এখনো কোনো দোকান নেই</div>`;
 }
 async function toggleShop(id, val){
@@ -1978,6 +1979,35 @@ async function submitResetShop(shopId, btn){
   if(paths.length){ try{ await sb.storage.from(IMG_BUCKET).remove(paths); }catch(e){} }
   closeDyn();
   showToast(`✅ রিসেট সম্পন্ন: ${data.invoices}টি ইনভয়েজ মোছা হয়েছে` + (data.products ? `, ${data.products}টি পণ্য মোছা হয়েছে` : ''));
+}
+/* ---- দোকান ডিলেট (শুধু সুপার অ্যাডমিন) ---- */
+function openDeleteShop(shopId){
+  const s = shopsCache.find(x => x.id === shopId); if(!s) return;
+  openDyn(`
+    <div class="modal-head"><h3>🗑️ দোকান ডিলেট: ${esc(s.name)}</h3><button class="close-x" onclick="closeDyn()">✕</button></div>
+    <div style="background:#FCF6F5;border:1px solid #F0CFCB;border-radius:8px;padding:12px;font-size:13.5px;line-height:1.8;">
+      <strong>মুছে যাবে:</strong> দোকান, দোকানের সব ইউজার/লগইন (মালিক ও কর্মচারী), সব পণ্য ও পণ্যের ছবি, ইনভয়েজ, ফেরত, বকেয়া পেমেন্ট ও কাস্টমারের রেকর্ড — সবকিছু।<br>
+      <strong style="color:var(--danger);">এই কাজ ফেরত আনা যাবে না।</strong>
+    </div>
+    <div class="mt12"></div>
+    <label>নিশ্চিত করতে দোকানের নাম হুবহু লিখুন: <strong>${esc(s.name)}</strong></label>
+    <input id="ds-confirm" autocomplete="off">
+    <div class="login-error" id="ds-err" style="margin-top:12px;"></div>
+    <button class="btn danger w100 mt16" style="justify-content:center;" onclick="submitDeleteShop('${s.id}', this)">🗑️ দোকান চিরতরে ডিলেট করুন</button>`);
+}
+async function submitDeleteShop(shopId, btn){
+  const s = shopsCache.find(x => x.id === shopId); if(!s) return;
+  const err = $('ds-err'); err.style.display = 'none';
+  if($('ds-confirm').value.trim() !== (s.name||'').trim()){ err.textContent = 'দোকানের নাম মেলেনি। সঠিকভাবে লিখুন।'; err.style.display = 'block'; return; }
+  btn.disabled = true;
+  try{
+    const res = await callFn('delete_shop', { shopId });
+    // পণ্যের ছবিগুলো স্টোরেজ থেকে মুছে জায়গা খালি করি
+    const marker = '/' + IMG_BUCKET + '/';
+    const paths = ((res && res.image_urls) || []).map(u => { const i = u.indexOf(marker); return i < 0 ? null : decodeURIComponent(u.slice(i + marker.length).split('?')[0]); }).filter(Boolean);
+    if(paths.length){ try{ await sb.storage.from(IMG_BUCKET).remove(paths); }catch(e){} }
+    closeDyn(); showToast('✅ দোকান ডিলেট হয়েছে'); renderAdmin();
+  }catch(e){ err.textContent = errMsg(e); err.style.display = 'block'; btn.disabled = false; }
 }
 $('btnAddShop').addEventListener('click', ()=>{
   openDyn(`
